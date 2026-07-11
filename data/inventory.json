@@ -1,0 +1,35 @@
+{
+  "settings": {
+    "logo": "/uploads/1783488436857-dfwacr.png",
+    "lineImages": {
+      "renew": "/uploads/1783488453689-13du5z.png",
+      "hybrid": "/uploads/1783488466565-ht9lsd.png",
+      "elite": "/uploads/1783488476756-8iej4t.png"
+    }
+  },
+  "products": [
+    {
+      "type": "pc",
+      "name": "ejmp#1",
+      "description": "pc para jugar ",
+      "price": 1300,
+      "stock": 0,
+      "image": "/uploads/1783489738286-j9ysaj.png",
+      "line": "elite",
+      "category": "gaming",
+      "brand": "AMD",
+      "specs": {
+        "cpu": "7 7800X3D",
+        "gpu": "5070",
+        "ram": "32GB DDR5 6000MT-S",
+        "ssd": "1TB M.2",
+        "psu": "MSI 850W GOL 80PLUS",
+        "motherboard": "CUALQUIERA",
+        "cooling": "LIQUIDA 360 MM"
+      },
+      "id": "prod-1783489740153",
+      "createdAt": "2026-07-08T05:49:00.153Z",
+      "updatedAt": "2026-07-11T05:24:31.796Z"
+    }
+  ]
+}

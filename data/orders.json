@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ord-1783747471796",
+    "number": "ANT-2026-0001",
+    "customer": {
+      "name": "nioslan",
+      "phone": "7868687337"
+    },
+    "items": [
+      {
+        "productId": "prod-1783489740153",
+        "name": "ejmp#1",
+        "line": "elite",
+        "unitPrice": 1300,
+        "quantity": 1,
+        "warrantyMonths": 6,
+        "warrantyEndsAt": "2027-01-11T20:00:00.000Z"
+      }
+    ],
+    "subtotal": 1300,
+    "extendedWarranty": true,
+    "warrantyFee": 130,
+    "total": 1430,
+    "payment": {
+      "method": "cash",
+      "amount": 1430,
+      "paidAt": "2026-07-11T19:00:00.000Z",
+      "note": "cash"
+    },
+    "status": "paid",
+    "warranty": {
+      "extended": true,
+      "includedMonths": 3,
+      "months": 6,
+      "startsAt": "2026-07-11T19:00:00.000Z",
+      "endsAt": "2027-01-11T20:00:00.000Z"
+    },
+    "note": "gracias por su compra",
+    "soldAt": "2026-07-11T19:00:00.000Z",
+    "createdAt": "2026-07-11T05:24:31.796Z"
+  }
+]

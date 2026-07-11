@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  --background: #05070c;
+  --surface: #111827;
+  --surface-elevated: #151c2b;
+  --primary: #22d3ee;
+  --cyan: #22d3ee;
+  --cyan-dim: #06b6d4;
+  --cyan-glow: rgba(34, 211, 238, 0.14);
+  --gold: #f5c518;
+  --gold-dim: #d4a017;
+  --gold-glow: rgba(245, 197, 24, 0.12);
+  --amber: #f5c518;
+  --amber-dim: #d4a017;
+  --amber-glow: rgba(245, 197, 24, 0.12);
+  --foreground: #ffffff;
+  --muted: #cbd5e1;
+  --muted-dark: #94a3b8;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(34, 211, 238, 0.22);
+  --nav-h: 4rem;
+  --phone-section: calc(100dvh - var(--nav-h));
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-primary: var(--primary);
+  --color-cyan: var(--cyan);
+  --color-cyan-dim: var(--cyan-dim);
+  --color-cyan-glow: var(--cyan-glow);
+  --color-gold: var(--gold);
+  --color-gold-dim: var(--gold-dim);
+  --color-gold-glow: var(--gold-glow);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-dark: var(--muted-dark);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-amber-glow: var(--amber-glow);
+  --font-sans: var(--font-manrope);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-scroll-behavior="smooth"] {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding:
+    env(safe-area-inset-top, 0)
+    env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: #ffffff;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --nav-h: 3.75rem;
+  }
+}

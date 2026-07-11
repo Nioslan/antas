@@ -11,6 +11,35 @@ type PhotoUploadProps = {
   error?: string;
 };
 
+const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_EDGE = 1400;
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+
+/** Compress on the client so Vercel does not need disk writes. */
+async function fileToDataUrl(file: File): Promise<string> {
+  if (!ALLOWED.includes(file.type)) {
+    throw new Error("Formato no permitido. Usa JPG, PNG o WebP.");
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error("La imagen no puede pesar más de 5 MB.");
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo procesar la imagen.");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
 export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -21,20 +50,15 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
     setUploading(true);
     setUploadError("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/trade-in/upload", {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    setUploading(false);
-
-    if (res.ok) {
-      onChange(data.url);
-    } else {
-      setUploadError(data.error ?? "Error al subir la foto");
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      onChange(dataUrl);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : "Error al cargar la foto",
+      );
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -42,7 +66,7 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   const displayError = error || uploadError;
@@ -100,7 +124,7 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
             </div>
             <div className="space-y-1 text-center">
               <p className="text-base font-medium">
-                {uploading ? "Subiendo foto..." : "Foto de tu PC"}
+                {uploading ? "Preparando foto..." : "Foto de tu PC"}
               </p>
               <p className="max-w-xs text-sm text-muted">
                 Sube una imagen clara de los componentes de tu PC.
@@ -124,7 +148,8 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          if (file) void handleFile(file);
+          e.target.value = "";
         }}
       />
     </div>

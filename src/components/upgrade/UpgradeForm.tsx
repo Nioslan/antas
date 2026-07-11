@@ -97,26 +97,49 @@ export function UpgradeForm() {
 
     setSubmitting(true);
 
-    const res = await fetch("/api/trade-in", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    // Try to save on server (works on a VPS). On Vercel disk is read-only,
+    // so we still continue and send the lead through WhatsApp.
+    try {
+      await fetch("/api/trade-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          // Avoid huge payloads if API rejects data URLs
+          photo: form.photo.startsWith("data:") ? "[foto-adjuntar-en-whatsapp]" : form.photo,
+        }),
+      });
+    } catch {
+      // ignore — WhatsApp is the reliable channel on Vercel
+    }
 
     setSubmitting(false);
-
-    if (res.ok) {
-      setSubmitted(true);
-    }
+    setSubmitted(true);
   }
 
   if (submitted) {
     const whatsappText = encodeURIComponent(
-      `Hola ANTAS, envié una solicitud de valoración de mi PC.\n\n` +
-        `Procesador: ${form.processor}\n` +
-        `GPU: ${form.gpu}\n` +
-        `RAM: ${form.ram}\n\n` +
-        `Mi nombre: ${form.name}`,
+      [
+        "Hola ANTAS, quiero usar mi PC como parte de pago.",
+        "",
+        `Nombre: ${form.name}`,
+        `Teléfono: ${form.phone}`,
+        form.email ? `Email: ${form.email}` : null,
+        "",
+        "Specs de mi PC:",
+        `Procesador: ${form.processor}`,
+        `Motherboard: ${form.motherboard}`,
+        `RAM: ${form.ram}`,
+        `Almacenamiento: ${form.storage}`,
+        `GPU: ${form.gpu}`,
+        `Fuente: ${form.psu}`,
+        `Cooling: ${COOLING_LABELS[form.coolingType as CoolingType] ?? form.coolingType} — ${form.coolingDetail}`,
+        form.extras ? `Extras: ${form.extras}` : null,
+        "",
+        "Voy a enviar la foto de la PC en el siguiente mensaje.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
     );
 
     return (
@@ -129,8 +152,8 @@ export function UpgradeForm() {
             Solicitud enviada
           </h1>
           <p className="mt-3 text-muted">
-            Recibimos los datos de tu PC. Te contactaremos pronto con una
-            valoración estimada para descontar de tu nueva ANTAS.
+            Abre WhatsApp para enviarnos los datos. En el chat, adjunta también
+            la foto de tu PC para la valoración.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Button
@@ -138,7 +161,7 @@ export function UpgradeForm() {
               className="gap-2"
             >
               <MessageCircle className="h-4 w-4" />
-              Seguir por WhatsApp
+              Enviar por WhatsApp
             </Button>
             <Button href="/pcs" variant="secondary">
               Ver PCs disponibles

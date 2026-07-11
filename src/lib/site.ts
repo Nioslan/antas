@@ -4,7 +4,7 @@ export const siteConfig = {
   tagline: "La PC que imaginas.",
   description:
     "Equipos premium para gaming, streaming y trabajo. Renew, Hybrid y Elite.",
-  whatsapp: "5215512345678",
+  whatsapp: "17868687337",
   email: "contacto@antaspc.com",
   address: "Miami, FL",
   hours: "Lun – Sáb: 10:00 – 19:00",

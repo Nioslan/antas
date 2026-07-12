@@ -8,6 +8,7 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { GalleryUpload } from "@/components/admin/GalleryUpload";
 import { VideoUpload } from "@/components/admin/VideoUpload";
 import { AdminSales } from "@/components/admin/AdminSales";
+import { AdminFinance } from "@/components/admin/AdminFinance";
 import {
   CATEGORY_LABELS,
   COMPONENT_TYPE_LABELS,
@@ -26,7 +27,7 @@ type AdminDashboardProps = {
   initialData: InventoryData;
 };
 
-type Tab = "sales" | "products" | "settings";
+type Tab = "sales" | "finance" | "products" | "settings";
 
 const emptyProduct = (): Omit<Product, "id" | "createdAt" | "updatedAt"> => ({
   type: "pc",
@@ -153,7 +154,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           <div>
             <h1 className="text-lg font-semibold">Panel ANTAS</h1>
             <p className="text-xs text-muted">
-              Ventas, facturas, inventario y fotos
+              Ventas, finanzas, inventario y fotos
             </p>
           </div>
           <div className="flex gap-2">
@@ -189,6 +190,17 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           </button>
           <button
             type="button"
+            onClick={() => setTab("finance")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              tab === "finance"
+                ? "bg-cyan text-black"
+                : "border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Finanzas
+          </button>
+          <button
+            type="button"
             onClick={() => setTab("products")}
             className={`rounded-full px-4 py-2 text-sm transition-colors ${
               tab === "products"
@@ -219,6 +231,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             }
           />
         )}
+
+        {tab === "finance" && <AdminFinance />}
 
         {tab === "products" && (
           <div className="space-y-6">

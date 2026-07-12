@@ -103,7 +103,7 @@ export function UpgradeForm() {
 
     let hostedPhoto = "";
 
-    // Publish photo to a public URL so WhatsApp can include it as a link.
+    // 1) Try to host the photo and put the link in WhatsApp
     if (photoBlob) {
       try {
         const body = new FormData();
@@ -116,22 +116,62 @@ export function UpgradeForm() {
         if (photoRes.ok && photoData.url) {
           hostedPhoto = photoData.url as string;
           setPhotoPublicUrl(hostedPhoto);
-        } else {
-          setSubmitError(
-            photoData.error ||
-              "No se pudo subir la foto. Intenta de nuevo o usa otra imagen.",
-          );
-          setSubmitting(false);
-          return;
         }
       } catch {
-        setSubmitError("No se pudo subir la foto. Revisa tu conexión.");
-        setSubmitting(false);
-        return;
+        // continue with share / WhatsApp text fallback
       }
     }
 
-    // Try to save on server (works on a VPS). On Vercel disk may fail.
+    const message = buildWhatsAppMessage(form, hostedPhoto);
+    const whatsappUrl = `https://wa.me/${siteConfig.whatsapp}?text=${encodeURIComponent(message)}`;
+
+    // 2) On phones: share the real image file + text to WhatsApp
+    if (photoBlob && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        const file = new File([photoBlob], "mi-pc-antas.jpg", {
+          type: photoBlob.type || "image/jpeg",
+        });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: message,
+            title: "Trade-in ANTASPC",
+          });
+          try {
+            await fetch("/api/trade-in", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...form,
+                photo: hostedPhoto || "[foto-compartida-whatsapp]",
+              }),
+            });
+          } catch {
+            // ignore
+          }
+          setSubmitting(false);
+          setSubmitted(true);
+          return;
+        }
+      } catch {
+        // user cancelled share or not supported — fall through
+      }
+    }
+
+    // 3) If hosting failed on desktop, download the photo so they can attach it
+    if (!hostedPhoto && photoBlob) {
+      try {
+        const objectUrl = URL.createObjectURL(photoBlob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = "mi-pc-antas.jpg";
+        a.click();
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        // ignore
+      }
+    }
+
     try {
       await fetch("/api/trade-in", {
         method: "POST",
@@ -147,11 +187,7 @@ export function UpgradeForm() {
 
     setSubmitting(false);
     setSubmitted(true);
-
-    const whatsappText = encodeURIComponent(
-      buildWhatsAppMessage(form, hostedPhoto),
-    );
-    window.location.href = `https://wa.me/${siteConfig.whatsapp}?text=${whatsappText}`;
+    window.location.href = whatsappUrl;
   }
 
   function buildWhatsAppMessage(data: TradeInFormData, photoUrl: string) {
@@ -195,9 +231,9 @@ export function UpgradeForm() {
             Abriendo WhatsApp…
           </h1>
           <p className="mt-3 text-muted">
-            El mensaje incluye los datos de tu PC
-            {photoPublicUrl ? " y el enlace de la foto" : ""}. Si no se abrió,
-            usa el botón de abajo.
+            {photoPublicUrl
+              ? "El mensaje incluye los datos y el enlace de la foto."
+              : "Si no se adjuntó sola, adjunta en WhatsApp la foto que se descargó (mi-pc-antas.jpg)."}
           </p>
           {photoPublicUrl ? (
             <a

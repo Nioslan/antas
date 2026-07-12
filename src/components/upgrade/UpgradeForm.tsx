@@ -209,8 +209,8 @@ export function UpgradeForm() {
       data.extras ? `Extras: ${data.extras}` : null,
       "",
       photoUrl
-        ? `Foto de la PC:\n${photoUrl}`
-        : "No se pudo adjuntar la foto automáticamente.",
+        ? `Foto de la PC (ábrela):\n${photoUrl}`
+        : "Foto: el cliente la compartió o la adjuntará en el chat.",
     ]
       .filter(Boolean)
       .join("\n");

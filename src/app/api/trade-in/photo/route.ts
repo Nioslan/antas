@@ -1,3 +1,4 @@
+import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -5,67 +6,29 @@ export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-function asImageBlob(file: File, buffer: Buffer): Blob {
-  return new Blob([new Uint8Array(buffer)], {
-    type: file.type || "image/jpeg",
-  });
+async function uploadVercelBlob(file: File, buffer: Buffer): Promise<string | null> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+
+  const blob = await put(
+    `trade-ins/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+    buffer,
+    {
+      access: "public",
+      contentType: file.type || "image/jpeg",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    },
+  );
+
+  return blob.url?.startsWith("http") ? blob.url : null;
 }
 
-async function uploadTmpFiles(blob: Blob): Promise<string | null> {
-  const body = new FormData();
-  body.append("file", blob, "antas-trade-in.jpg");
-
-  const res = await fetch("https://tmpfiles.org/api/v1/upload", {
-    method: "POST",
-    body,
-  });
-  if (!res.ok) return null;
-
-  const json = (await res.json()) as {
-    status?: string;
-    data?: { url?: string };
-  };
-  const pageUrl = json.data?.url;
-  if (!pageUrl?.startsWith("http")) return null;
-
-  // https://tmpfiles.org/123 → https://tmpfiles.org/dl/123
-  return pageUrl.replace("://tmpfiles.org/", "://tmpfiles.org/dl/");
-}
-
-async function uploadZeroXZero(blob: Blob): Promise<string | null> {
-  const body = new FormData();
-  body.append("file", blob, "antas-trade-in.jpg");
-
-  const res = await fetch("https://0x0.st", { method: "POST", body });
-  if (!res.ok) return null;
-  const url = (await res.text()).trim();
-  return url.startsWith("http") ? url : null;
-}
-
-async function uploadCatbox(blob: Blob): Promise<string | null> {
-  const body = new FormData();
-  body.append("reqtype", "fileupload");
-  body.append("fileToUpload", blob, "antas-trade-in.jpg");
-
-  const res = await fetch("https://catbox.moe/user/api.php", {
-    method: "POST",
-    body,
-  });
-  if (!res.ok) return null;
-  const url = (await res.text()).trim();
-  return url.startsWith("http") ? url : null;
-}
-
-/** Optional: set IMGBB_API_KEY in Vercel for the most reliable free hosting. */
-async function uploadImgBB(blob: Blob): Promise<string | null> {
+async function uploadImgBB(buffer: Buffer): Promise<string | null> {
   const key = process.env.IMGBB_API_KEY;
   if (!key) return null;
 
-  const buffer = Buffer.from(await blob.arrayBuffer());
-  const base64 = buffer.toString("base64");
   const body = new URLSearchParams();
   body.set("key", key);
-  body.set("image", base64);
+  body.set("image", buffer.toString("base64"));
 
   const res = await fetch("https://api.imgbb.com/1/upload", {
     method: "POST",
@@ -79,6 +42,17 @@ async function uploadImgBB(blob: Blob): Promise<string | null> {
   };
   const url = json.data?.display_url || json.data?.url;
   return json.success && url?.startsWith("http") ? url : null;
+}
+
+async function verifyUrl(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: "HEAD", redirect: "follow" });
+    if (res.ok) return true;
+    const res2 = await fetch(url, { method: "GET", redirect: "follow" });
+    return res2.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -105,23 +79,33 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const blob = asImageBlob(file, buffer);
 
-    const hosts = [uploadImgBB, uploadTmpFiles, uploadZeroXZero, uploadCatbox];
+    const hosts = [
+      () => uploadVercelBlob(file, buffer),
+      () => uploadImgBB(buffer),
+    ];
 
     for (const upload of hosts) {
       try {
-        const url = await upload(blob);
-        if (url) return NextResponse.json({ url });
+        const url = await upload();
+        if (!url) continue;
+        const ok = await verifyUrl(url);
+        if (ok) return NextResponse.json({ url });
       } catch {
         // try next
       }
     }
 
+    const hasBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+    const hasImgbb = Boolean(process.env.IMGBB_API_KEY);
+
     return NextResponse.json(
       {
         error: "HOSTS_FAILED",
-        message: "No se pudo publicar la foto en este momento.",
+        message: hasBlob || hasImgbb
+          ? "No se pudo publicar la foto. Intenta otra imagen."
+          : "Falta configurar almacenamiento de fotos en Vercel (Blob o ImgBB).",
+        needsSetup: !hasBlob && !hasImgbb,
       },
       { status: 502 },
     );

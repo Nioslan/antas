@@ -58,9 +58,12 @@ const steps = [
 
 export function UpgradeForm() {
   const [form, setForm] = useState<TradeInFormData>(emptyForm);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoPublicUrl, setPhotoPublicUrl] = useState("");
   const [errors, setErrors] = useState<Partial<Record<keyof TradeInFormData, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const inputClass =
     "w-full rounded-xl border border-border bg-black px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-dark focus:border-cyan/50 focus:shadow-[0_0_0_3px_var(--color-cyan-glow)]";
@@ -96,50 +99,90 @@ export function UpgradeForm() {
     if (!validate()) return;
 
     setSubmitting(true);
+    setSubmitError("");
 
-    // Try to save on server (works on a VPS). On Vercel disk is read-only,
-    // so we still continue and send the lead through WhatsApp.
+    let hostedPhoto = "";
+
+    // Publish photo to a public URL so WhatsApp can include it as a link.
+    if (photoBlob) {
+      try {
+        const body = new FormData();
+        body.append("file", photoBlob, "pc-trade-in.jpg");
+        const photoRes = await fetch("/api/trade-in/photo", {
+          method: "POST",
+          body,
+        });
+        const photoData = await photoRes.json();
+        if (photoRes.ok && photoData.url) {
+          hostedPhoto = photoData.url as string;
+          setPhotoPublicUrl(hostedPhoto);
+        } else {
+          setSubmitError(
+            photoData.error ||
+              "No se pudo subir la foto. Intenta de nuevo o usa otra imagen.",
+          );
+          setSubmitting(false);
+          return;
+        }
+      } catch {
+        setSubmitError("No se pudo subir la foto. Revisa tu conexión.");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Try to save on server (works on a VPS). On Vercel disk may fail.
     try {
       await fetch("/api/trade-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          // Avoid huge payloads if API rejects data URLs
-          photo: form.photo.startsWith("data:") ? "[foto-adjuntar-en-whatsapp]" : form.photo,
+          photo: hostedPhoto || form.photo,
         }),
       });
     } catch {
-      // ignore — WhatsApp is the reliable channel on Vercel
+      // WhatsApp is the reliable channel
     }
 
     setSubmitting(false);
     setSubmitted(true);
+
+    const whatsappText = encodeURIComponent(
+      buildWhatsAppMessage(form, hostedPhoto),
+    );
+    window.location.href = `https://wa.me/${siteConfig.whatsapp}?text=${whatsappText}`;
+  }
+
+  function buildWhatsAppMessage(data: TradeInFormData, photoUrl: string) {
+    return [
+      "Hola ANTAS, quiero usar mi PC como parte de pago.",
+      "",
+      `Nombre: ${data.name}`,
+      `Teléfono: ${data.phone}`,
+      data.email ? `Email: ${data.email}` : null,
+      "",
+      "Specs de mi PC:",
+      `Procesador: ${data.processor}`,
+      `Motherboard: ${data.motherboard}`,
+      `RAM: ${data.ram}`,
+      `Almacenamiento: ${data.storage}`,
+      `GPU: ${data.gpu}`,
+      `Fuente: ${data.psu}`,
+      `Cooling: ${COOLING_LABELS[data.coolingType as CoolingType] ?? data.coolingType} — ${data.coolingDetail}`,
+      data.extras ? `Extras: ${data.extras}` : null,
+      "",
+      photoUrl
+        ? `Foto de la PC:\n${photoUrl}`
+        : "No se pudo adjuntar la foto automáticamente.",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   if (submitted) {
     const whatsappText = encodeURIComponent(
-      [
-        "Hola ANTAS, quiero usar mi PC como parte de pago.",
-        "",
-        `Nombre: ${form.name}`,
-        `Teléfono: ${form.phone}`,
-        form.email ? `Email: ${form.email}` : null,
-        "",
-        "Specs de mi PC:",
-        `Procesador: ${form.processor}`,
-        `Motherboard: ${form.motherboard}`,
-        `RAM: ${form.ram}`,
-        `Almacenamiento: ${form.storage}`,
-        `GPU: ${form.gpu}`,
-        `Fuente: ${form.psu}`,
-        `Cooling: ${COOLING_LABELS[form.coolingType as CoolingType] ?? form.coolingType} — ${form.coolingDetail}`,
-        form.extras ? `Extras: ${form.extras}` : null,
-        "",
-        "Voy a enviar la foto de la PC en el siguiente mensaje.",
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      buildWhatsAppMessage(form, photoPublicUrl),
     );
 
     return (
@@ -149,12 +192,23 @@ export function UpgradeForm() {
             <CheckCircle2 className="h-10 w-10 text-cyan" />
           </div>
           <h1 className="text-2xl font-semibold sm:text-3xl">
-            Solicitud enviada
+            Abriendo WhatsApp…
           </h1>
           <p className="mt-3 text-muted">
-            Abre WhatsApp para enviarnos los datos. En el chat, adjunta también
-            la foto de tu PC para la valoración.
+            El mensaje incluye los datos de tu PC
+            {photoPublicUrl ? " y el enlace de la foto" : ""}. Si no se abrió,
+            usa el botón de abajo.
           </p>
+          {photoPublicUrl ? (
+            <a
+              href={photoPublicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-block text-sm text-cyan hover:underline"
+            >
+              Ver foto enviada
+            </a>
+          ) : null}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Button
               href={`https://wa.me/${siteConfig.whatsapp}?text=${whatsappText}`}
@@ -224,9 +278,15 @@ export function UpgradeForm() {
               </div>
               <PhotoUpload
                 value={form.photo}
-                onChange={(url) => updateField("photo", url)}
+                onChange={(url, blob) => {
+                  updateField("photo", url);
+                  setPhotoBlob(blob);
+                }}
                 error={errors.photo}
               />
+              {submitError ? (
+                <p className="mt-2 text-sm text-red-400">{submitError}</p>
+              ) : null}
             </div>
 
             {/* Specs */}

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 type PhotoUploadProps = {
   value: string;
-  onChange: (url: string) => void;
+  onChange: (previewUrl: string, blob: Blob | null) => void;
   error?: string;
 };
 
@@ -15,8 +15,9 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_EDGE = 1400;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
-/** Compress on the client so Vercel does not need disk writes. */
-async function fileToDataUrl(file: File): Promise<string> {
+async function fileToPreviewAndBlob(
+  file: File,
+): Promise<{ preview: string; blob: Blob }> {
   if (!ALLOWED.includes(file.type)) {
     throw new Error("Formato no permitido. Usa JPG, PNG o WebP.");
   }
@@ -37,7 +38,16 @@ async function fileToDataUrl(file: File): Promise<string> {
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  return canvas.toDataURL("image/jpeg", 0.82);
+  const preview = canvas.toDataURL("image/jpeg", 0.82);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("No se pudo comprimir la foto"))),
+      "image/jpeg",
+      0.82,
+    );
+  });
+
+  return { preview, blob };
 }
 
 export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
@@ -51,8 +61,8 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
     setUploadError("");
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      onChange(dataUrl);
+      const { preview, blob } = await fileToPreviewAndBlob(file);
+      onChange(preview, blob);
     } catch (err) {
       setUploadError(
         err instanceof Error ? err.message : "Error al cargar la foto",
@@ -101,7 +111,7 @@ export function PhotoUpload({ value, onChange, error }: PhotoUploadProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <button
               type="button"
-              onClick={() => onChange("")}
+              onClick={() => onChange("", null)}
               className="absolute right-4 top-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-white backdrop-blur-sm transition-colors hover:bg-red-500/90"
             >
               <X className="h-3.5 w-3.5" />

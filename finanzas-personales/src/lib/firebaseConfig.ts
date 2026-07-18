@@ -1,10 +1,6 @@
 /**
- * Firebase web config.
- *
- * 1) Seguí FIREBASE_SETUP.md
- * 2) Pegá acá los valores de la consola, o usá EXPO_PUBLIC_FIREBASE_*
- *
- * Mientras haya placeholders, Auth/Firestore no van a conectar.
+ * Firebase web config del proyecto finanzas-personales-21465.
+ * También se puede sobreescribir con EXPO_PUBLIC_FIREBASE_*.
  */
 const fromEnv = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
@@ -13,19 +9,21 @@ const fromEnv = {
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID ?? '',
 };
 
-/** Valores embebidos (reemplazá después de crear el proyecto Firebase). */
+/** Valores del proyecto Firebase (consola). */
 const embedded = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT.appspot.com',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyArotLvvsAGQ7ei8hoZUEl-QWH3wEUrGa8',
+  authDomain: 'finanzas-personales-21465.firebaseapp.com',
+  projectId: 'finanzas-personales-21465',
+  storageBucket: 'finanzas-personales-21465.firebasestorage.app',
+  messagingSenderId: '812081659477',
+  appId: '1:812081659477:web:2043e363f47774a57ededc',
+  measurementId: 'G-0YZ6D44M9H',
 };
 
-function pick(key: keyof typeof fromEnv): string {
+function pick(key: keyof typeof embedded): string {
   const envVal = fromEnv[key]?.trim();
   if (envVal) return envVal;
   return embedded[key];
@@ -38,6 +36,7 @@ export const firebaseConfig = {
   storageBucket: pick('storageBucket'),
   messagingSenderId: pick('messagingSenderId'),
   appId: pick('appId'),
+  measurementId: pick('measurementId'),
 };
 
 export const googleWebClientId =

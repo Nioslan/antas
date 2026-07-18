@@ -39,8 +39,10 @@ export const firebaseConfig = {
   measurementId: pick('measurementId'),
 };
 
+/** Web client ID de Authentication → Google (no pegues el secreto). */
 export const googleWebClientId =
-  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || undefined;
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ||
+  '812081659477-j0s6vg9elk2mp1q4fgpg5upudjlg70j3.apps.googleusercontent.com';
 
 export function isFirebaseConfigured(): boolean {
   return (

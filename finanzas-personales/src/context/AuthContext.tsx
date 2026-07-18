@@ -12,20 +12,14 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updateProfile,
   type User,
 } from 'firebase/auth';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 
-import { getFirebaseAuth, isFirebaseConfigured } from '@/src/lib/firebase';
-import { googleWebClientId } from '@/src/lib/firebaseConfig';
-
-WebBrowser.maybeCompleteAuthSession();
+import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase';
 
 type AuthContextValue = {
   user: User | null;
@@ -62,7 +56,7 @@ function mapAuthError(err: unknown): string {
     case 'auth/operation-not-allowed':
       return 'Este método de login no está habilitado en Firebase.';
     case 'auth/unauthorized-domain':
-      return 'Este dominio no está autorizado en Firebase. En Authentication → Settings → Authorized domains agregá el dominio de la URL (ej. ….trycloudflare.com) o usá localhost.';
+      return 'Este dominio no está autorizado en Firebase.';
     case 'auth/popup-blocked':
       return 'El navegador bloqueó la ventana de Google. Permití popups e intentá de nuevo.';
     case 'auth/popup-closed-by-user':
@@ -79,51 +73,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(configured);
   const [error, setError] = useState<string | null>(null);
 
-  // Client ID real se configura con EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.
-  // El hook no puede ser condicional; usamos placeholder hasta configurar.
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId: googleWebClientId || '000000000000-placeholder.apps.googleusercontent.com',
-    iosClientId: googleWebClientId,
-    androidClientId: googleWebClientId,
-  });
-
   useEffect(() => {
     if (!configured) {
       setLoading(false);
       return;
     }
 
-    const auth = getFirebaseAuth();
-    const unsub = onAuthStateChanged(auth, (next) => {
-      setUser(next);
+    try {
+      const auth = getFirebaseAuth();
+      const unsub = onAuthStateChanged(
+        auth,
+        (next) => {
+          setUser(next);
+          setLoading(false);
+        },
+        () => {
+          setLoading(false);
+        }
+      );
+      return unsub;
+    } catch {
       setLoading(false);
-    });
-    return unsub;
-  }, [configured]);
-
-  useEffect(() => {
-    if (!configured) return;
-    if (response?.type !== 'success') return;
-
-    const idToken =
-      response.authentication?.idToken ??
-      (response.params as { id_token?: string })?.id_token;
-
-    if (!idToken) {
-      setError('Google no devolvió un token válido.');
-      return;
+      return undefined;
     }
-
-    (async () => {
-      try {
-        const credential = GoogleAuthProvider.credential(idToken);
-        await signInWithCredential(getFirebaseAuth(), credential);
-        setError(null);
-      } catch (err) {
-        setError(mapAuthError(err));
-      }
-    })();
-  }, [configured, response]);
+  }, [configured]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -172,21 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!googleWebClientId) {
-        throw new Error(
-          'Falta EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID para Google Sign-In en dispositivo.',
-        );
-      }
-      if (!request) {
-        throw new Error('Google Sign-In todavía no está listo. Probá de nuevo.');
-      }
-      await promptAsync();
+      // En el APK actual no están los módulos nativos de Google Sign-In.
+      // Email/contraseña sí funciona; Google vuelve con un rebuild.
+      throw new Error(
+        'En el teléfono usá email y contraseña por ahora. Google vuelve en el próximo APK.',
+      );
     } catch (err) {
       const msg = mapAuthError(err);
       setError(msg);
       throw new Error(msg);
     }
-  }, [configured, promptAsync, request]);
+  }, [configured]);
 
   const logout = useCallback(async () => {
     if (!configured) return;

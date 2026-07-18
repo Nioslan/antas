@@ -1,10 +1,62 @@
 import 'react-native-gesture-handler';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/context/AuthContext';
 import { FinanceProvider } from '../src/context/FinanceContext';
 import { SettingsProvider, useSettings } from '../src/context/SettingsContext';
+
+class RootErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('RootErrorBoundary', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#0B1F1A',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            gap: 12,
+          }}>
+          <Text style={{ color: '#F2F7F4', fontSize: 18, fontWeight: '700' }}>
+            Algo falló al abrir la app
+          </Text>
+          <Text style={{ color: '#9BB5AB', textAlign: 'center' }}>
+            {this.state.error.message}
+          </Text>
+          <Pressable
+            onPress={() => this.setState({ error: null })}
+            style={{
+              marginTop: 8,
+              backgroundColor: '#3DDC97',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 12,
+            }}>
+            <Text style={{ color: '#0B1F1A', fontWeight: '700' }}>Reintentar</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function RootNavigator() {
   const { colors, isDark } = useSettings();
@@ -65,13 +117,15 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <SettingsProvider>
-        <AuthProvider>
-          <FinanceProvider>
-            <RootNavigator />
-          </FinanceProvider>
-        </AuthProvider>
-      </SettingsProvider>
+      <RootErrorBoundary>
+        <SettingsProvider>
+          <AuthProvider>
+            <FinanceProvider>
+              <RootNavigator />
+            </FinanceProvider>
+          </AuthProvider>
+        </SettingsProvider>
+      </RootErrorBoundary>
     </SafeAreaProvider>
   );
 }

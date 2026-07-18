@@ -3,7 +3,7 @@
  * Actualizá este link cuando termine un build nuevo en EAS.
  */
 export const LATEST_ANDROID_APK_URL =
-  'https://expo.dev/accounts/antas/projects/finanzas-personales/builds/580d0206-22a9-4b74-a28d-4d145f687f2a';
+  'https://expo.dev/accounts/antas/projects/finanzas-personales/builds/c041d7c0-c59e-410a-940d-893f82f04629';
 
 /** SHA-1 del keystore EAS (preview). Hay que pegarlo en Firebase → Android app. */
 export const ANDROID_SHA1 =

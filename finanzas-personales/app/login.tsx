@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
 import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
 import { useAuth } from '../src/context/AuthContext';
+import { setGuestAccess } from '../src/lib/guestAccess';
 import { spacing } from '../src/theme';
 import { useSettings } from '../src/context/SettingsContext';
 
@@ -34,6 +35,11 @@ export default function LoginScreen() {
     return <Redirect href="/(tabs)" />;
   }
 
+  const afterAuthSuccess = async () => {
+    await setGuestAccess(false);
+    router.replace('/(tabs)');
+  };
+
   const submit = async () => {
     clearError();
     setLocalError(null);
@@ -45,6 +51,7 @@ export default function LoginScreen() {
     try {
       if (mode === 'login') await signInEmail(email, password);
       else await signUpEmail(email, password, name);
+      await afterAuthSuccess();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Error de acceso');
     } finally {
@@ -58,11 +65,17 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await signInWithGoogle();
+      await afterAuthSuccess();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Error con Google');
     } finally {
       setBusy(false);
     }
+  };
+
+  const continueAsGuest = async () => {
+    await setGuestAccess(true);
+    router.replace('/(tabs)');
   };
 
   const message = localError || error;
@@ -72,16 +85,17 @@ export default function LoginScreen() {
       <KeyboardForm contentContainerStyle={styles.content} bottomOffset={40}>
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
-            <Title>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</Title>
+            <Title>Finanzas</Title>
             <Subtitle>
-              Tu historial viaja con tu cuenta. Recuperá movimientos, metas y fijos en
+              Iniciá sesión para guardar tus datos en la nube y recuperarlos en
               cualquier teléfono.
             </Subtitle>
           </View>
-          <Pressable onPress={() => router.back()}>
-            <Text style={[styles.cancel, { color: colors.textMuted }]}>Cerrar</Text>
-          </Pressable>
         </View>
+
+        <Text style={[styles.modeTitle, { color: colors.text }]}>
+          {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+        </Text>
 
         {!configured ? (
           <View
@@ -161,7 +175,7 @@ export default function LoginScreen() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => router.replace('/(tabs)')}>
+        <Pressable onPress={continueAsGuest}>
           <Text style={[styles.switchText, { color: colors.textMuted }]}>
             Seguir sin cuenta (solo este teléfono)
           </Text>
@@ -183,10 +197,10 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 8,
   },
-  cancel: {
-    fontWeight: '600',
-    fontSize: 16,
-    paddingTop: 4,
+  modeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   banner: {
     borderWidth: 1,

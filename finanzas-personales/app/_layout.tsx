@@ -18,6 +18,8 @@ function RootNavigator() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="add-transaction"
@@ -49,14 +51,6 @@ function RootNavigator() {
         />
         <Stack.Screen
           name="settings"
-          options={{
-            presentation: 'card',
-            headerShown: false,
-            animation: 'slide_from_bottom',
-          }}
-        />
-        <Stack.Screen
-          name="login"
           options={{
             presentation: 'card',
             headerShown: false,

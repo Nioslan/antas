@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Platform } from 'react-native';
-import { Tabs } from 'expo-router';
+import { ActivityIndicator, Keyboard, Platform, View } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/context/AuthContext';
+import { getGuestAccess } from '../../src/lib/guestAccess';
 import { useSettings } from '../../src/context/SettingsContext';
 
 export default function TabsLayout() {
   const { colors } = useSettings();
+  const { user, loading } = useAuth();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [guest, setGuest] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getGuestAccess().then(setGuest);
+  }, [user]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -22,6 +30,24 @@ export default function TabsLayout() {
       hide.remove();
     };
   }, []);
+
+  if (loading || guest === null) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.bg,
+        }}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (!user && !guest) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <Tabs

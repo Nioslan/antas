@@ -28,6 +28,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { useFinance } from '../src/context/FinanceContext';
 import { useSettings } from '../src/context/SettingsContext';
 import { formatMoney } from '../src/lib/categories';
+import { setGuestAccess } from '../src/lib/guestAccess';
 import { scheduleFixedReminders } from '../src/lib/notifications';
 import { getOpenAiKey, setOpenAiKey } from '../src/lib/storage';
 import { sanitizeApiKey, testOpenAiKey } from '../src/lib/ai';
@@ -268,7 +269,9 @@ export default function SettingsScreen() {
                 onPress={async () => {
                   setAccountBusy(true);
                   try {
+                    await setGuestAccess(false);
                     await logout();
+                    router.replace('/login');
                   } finally {
                     setAccountBusy(false);
                   }

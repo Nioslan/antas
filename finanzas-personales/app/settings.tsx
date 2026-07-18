@@ -1,181 +1,587 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
-  ScrollView,
+  Share,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardForm } from '../src/components/KeyboardForm';
+import {
+  Chip,
+  Field,
+  PrimaryButton,
+  Screen,
+  SegmentedControl,
+  SettingsRow,
+  Subtitle,
+  Title,
+} from '../src/components/ui';
+import { useAuth } from '../src/context/AuthContext';
+import { useFinance } from '../src/context/FinanceContext';
+import { useSettings } from '../src/context/SettingsContext';
+import { formatMoney } from '../src/lib/categories';
+import { scheduleFixedReminders } from '../src/lib/notifications';
+import { getOpenAiKey, setOpenAiKey } from '../src/lib/storage';
+import { sanitizeApiKey, testOpenAiKey } from '../src/lib/ai';
+import { checkAndApplyUpdate, getUpdateMeta } from '../src/lib/updates';
+import type { AppCurrency, AppLanguage, ThemeMode } from '../src/i18n';
+import { spacing } from '../src/theme';
 
-import { useAuth } from '@/src/context/AuthContext';
-import { useFinance } from '@/src/context/FinanceContext';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-
-function syncLabel(status: string): string {
-  switch (status) {
-    case 'syncing':
-      return 'Sincronizando…';
-    case 'synced':
-      return 'Sincronizado';
-    case 'offline':
-      return 'Sin conexión (datos locales)';
-    case 'error':
-      return 'Error de sync';
-    default:
-      return 'Sin sincronizar';
-  }
-}
+const KEYS_URL = 'https://platform.openai.com/api-keys';
+const HELP_URL = 'mailto:soporte@finanzas.app?subject=Ayuda%20Finanzas';
+const APP_VERSION =
+  Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
 
 export default function SettingsScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const c = Colors[scheme];
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, configured, logout, loading } = useAuth();
-  const { syncStatus, syncError, lastSyncedAt, syncNow } = useFinance();
-  const [busy, setBusy] = useState(false);
+  const {
+    today,
+    clearChat,
+    resetAllData,
+    exportDataJson,
+    state,
+    syncStatus,
+    syncError,
+    lastSyncedAt,
+    syncNow,
+  } = useFinance();
+  const { user, configured, logout, loading: authLoading } = useAuth();
+  const {
+    colors,
+    tr,
+    language,
+    settings,
+    setThemeMode,
+    setLanguage,
+    setCurrency,
+    setNotificationsEnabled,
+    setHapticsEnabled,
+    setSaturdayBonusEnabled,
+    currencyOptions,
+  } = useSettings();
+  const updateMeta = getUpdateMeta();
 
-  const onSync = async () => {
-    setBusy(true);
+  const [apiKey, setApiKey] = useState('');
+  const [hasKey, setHasKey] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [accountBusy, setAccountBusy] = useState(false);
+
+  const syncLabel =
+    syncStatus === 'syncing'
+      ? 'Sincronizando…'
+      : syncStatus === 'synced'
+        ? 'Sincronizado'
+        : syncStatus === 'offline'
+          ? 'Sin conexión (datos locales)'
+          : syncStatus === 'error'
+            ? 'Error de sync'
+            : 'Sin sincronizar';
+
+  useEffect(() => {
+    getOpenAiKey().then((key) => {
+      setHasKey(Boolean(key));
+      if (key) setApiKey(key);
+    });
+  }, []);
+
+  const saveKey = async () => {
+    const trimmed = sanitizeApiKey(apiKey);
+    if (trimmed && !trimmed.startsWith('sk-')) {
+      Alert.alert(
+        'Revisá la clave',
+        'Las API keys de OpenAI suelen empezar con sk-.'
+      );
+      return;
+    }
+    await setOpenAiKey(trimmed);
+    setApiKey(trimmed);
+    setHasKey(Boolean(trimmed));
+    Alert.alert(
+      'Listo',
+      trimmed
+        ? 'Clave guardada. Tocá “Probar conexión” para verificarla.'
+        : 'Clave eliminada. Se usará el coach local.'
+    );
+  };
+
+  const testKey = async () => {
+    setTesting(true);
     try {
-      await syncNow();
+      const result = await testOpenAiKey(apiKey || (await getOpenAiKey()) || '');
+      Alert.alert(result.ok ? 'Conexión OK' : 'Error de OpenAI', result.message);
+      if (result.ok) {
+        const cleaned = sanitizeApiKey(apiKey);
+        if (cleaned) {
+          await setOpenAiKey(cleaned);
+          setApiKey(cleaned);
+          setHasKey(true);
+        }
+      }
     } finally {
-      setBusy(false);
+      setTesting(false);
     }
   };
 
-  const onLogout = async () => {
-    setBusy(true);
-    try {
-      await logout();
-    } finally {
-      setBusy(false);
+  const onToggleNotifications = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    if (value) {
+      await scheduleFixedReminders(state.fixedExpenses);
+      Alert.alert('Notificaciones', 'Recordatorios activados.');
+    } else {
+      Alert.alert('Notificaciones', 'No se programarán nuevos recordatorios.');
     }
+  };
+
+  const checkUpdates = async () => {
+    setCheckingUpdate(true);
+    try {
+      const result = await checkAndApplyUpdate(language);
+      if (result.status === 'updated') return; // app reloads
+      Alert.alert(tr('checkUpdates'), result.message);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const exportData = async () => {
+    try {
+      await Share.share({
+        message: exportDataJson(),
+        title: 'finanzas-backup.json',
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo exportar.');
+    }
+  };
+
+  const confirmClearChat = () => {
+    Alert.alert(tr('clearChat'), '¿Borrar el historial del coach?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar',
+        style: 'destructive',
+        onPress: () => {
+          clearChat();
+          Alert.alert('Listo', 'Chat borrado.');
+        },
+      },
+    ]);
+  };
+
+  const confirmReset = () => {
+    Alert.alert(
+      tr('resetApp'),
+      'Se borrarán movimientos, metas, fijos, efectivo y chat. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todo',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAllData();
+            Alert.alert('Listo', 'Datos eliminados.');
+          },
+        },
+      ]
+    );
   };
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Ajustes' }} />
-      <ScrollView style={{ flex: 1, backgroundColor: c.background }} contentContainerStyle={styles.content}>
-        <Text style={[styles.sectionTitle, { color: c.text }]}>Cuenta</Text>
-        <View style={[styles.block, { backgroundColor: c.card, borderColor: c.border }]}>
-          {!configured ? (
-            <Text style={{ color: c.muted, lineHeight: 20 }}>
-              Firebase no configurado. Seguí FIREBASE_SETUP.md y pegá el config en
-              src/lib/firebaseConfig.ts para habilitar la nube.
+    <Screen style={{ paddingTop: insets.top + 12 }}>
+      <KeyboardForm contentContainerStyle={styles.content} bottomOffset={40}>
+        <View style={styles.head}>
+          <View style={{ flex: 1 }}>
+            <Title>{tr('settings')}</Title>
+            <Subtitle>{tr('settingsSubtitle')}</Subtitle>
+          </View>
+          <Pressable onPress={() => router.back()}>
+            <Text style={[styles.cancel, { color: colors.textMuted }]}>
+              {tr('close')}
             </Text>
-          ) : loading ? (
-            <ActivityIndicator color={c.tint} />
+          </Pressable>
+        </View>
+
+        {/* Cuenta / nube */}
+        <Text style={[styles.section, { color: colors.text }]}>Cuenta</Text>
+        <View
+          style={[
+            styles.accountBox,
+            { backgroundColor: colors.bgCard, borderColor: colors.border },
+          ]}>
+          {!configured ? (
+            <Text style={{ color: colors.textMuted, lineHeight: 20 }}>
+              Firebase no configurado. Seguí FIREBASE_SETUP.md.
+            </Text>
+          ) : authLoading ? (
+            <Text style={{ color: colors.textMuted }}>Cargando sesión…</Text>
           ) : user ? (
             <>
-              <Text style={[styles.label, { color: c.muted }]}>Sesión</Text>
-              <Text style={[styles.value, { color: c.text }]}>
+              <Text style={[styles.label, { color: colors.textMuted }]}>Sesión</Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
                 {user.displayName || user.email || user.uid}
               </Text>
               {user.email && user.displayName ? (
-                <Text style={{ color: c.muted, marginTop: 2 }}>{user.email}</Text>
+                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
+                  {user.email}
+                </Text>
               ) : null}
-
-              <Text style={[styles.label, { color: c.muted, marginTop: 16 }]}>Sincronización</Text>
-              <Text style={[styles.value, { color: c.text }]}>{syncLabel(syncStatus)}</Text>
+              <Text
+                style={[styles.label, { color: colors.textMuted, marginTop: 14 }]}>
+                Sincronización
+              </Text>
+              <Text style={{ color: colors.text }}>{syncLabel}</Text>
               {lastSyncedAt ? (
-                <Text style={{ color: c.muted, marginTop: 2, fontSize: 13 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
                   Última: {new Date(lastSyncedAt).toLocaleString()}
                 </Text>
               ) : null}
               {syncError ? (
-                <Text style={{ color: c.danger, marginTop: 8 }}>{syncError}</Text>
+                <Text style={{ color: colors.expense, marginTop: 8 }}>{syncError}</Text>
               ) : null}
-
+              <PrimaryButton
+                label="Sincronizar ahora"
+                onPress={async () => {
+                  setAccountBusy(true);
+                  try {
+                    await syncNow();
+                  } finally {
+                    setAccountBusy(false);
+                  }
+                }}
+                disabled={accountBusy}
+              />
               <Pressable
-                style={[styles.btn, { backgroundColor: c.tint, opacity: busy ? 0.7 : 1 }]}
-                disabled={busy}
-                onPress={onSync}>
-                {busy && syncStatus === 'syncing' ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Sincronizar ahora</Text>
-                )}
-              </Pressable>
-
-              <Pressable
-                style={[styles.btnOutline, { borderColor: c.border }]}
-                disabled={busy}
-                onPress={onLogout}>
-                <Text style={{ color: c.text, fontWeight: '600' }}>Cerrar sesión</Text>
+                style={[styles.outlineBtn, { borderColor: colors.border }]}
+                disabled={accountBusy}
+                onPress={async () => {
+                  setAccountBusy(true);
+                  try {
+                    await logout();
+                  } finally {
+                    setAccountBusy(false);
+                  }
+                }}>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>
+                  Cerrar sesión
+                </Text>
               </Pressable>
             </>
           ) : (
             <>
-              <Text style={{ color: c.text, lineHeight: 21, marginBottom: 12 }}>
-                Iniciá sesión para guardar movimientos, metas, fijos y efectivo en la nube y
-                recuperarlos en otro teléfono.
+              <Text style={{ color: colors.text, lineHeight: 21, marginBottom: 10 }}>
+                Iniciá sesión para guardar movimientos, metas, fijos y efectivo en la
+                nube y recuperarlos en otro teléfono.
               </Text>
-              <Pressable
-                style={{ ...styles.btn, backgroundColor: c.tint }}
-                onPress={() => router.push('/login')}>
-                <Text style={styles.btnText}>Iniciar sesión / Crear cuenta</Text>
-              </Pressable>
+              <PrimaryButton
+                label="Iniciar sesión / Crear cuenta"
+                onPress={() => router.push('/login')}
+              />
             </>
           )}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: c.text, marginTop: 28 }]}>Acerca de</Text>
-        <View style={[styles.block, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={{ color: c.muted, lineHeight: 20 }}>
-            Finanzas personales · sync con Firebase Auth + Firestore. La clave de OpenAI queda
-            solo en este dispositivo.
-          </Text>
+        {/* Apariencia */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('sectionAppearance')}
+        </Text>
+        <Text style={[styles.label, { color: colors.textMuted }]}>{tr('theme')}</Text>
+        <SegmentedControl<ThemeMode>
+          value={settings.themeMode}
+          onChange={setThemeMode}
+          options={[
+            { id: 'system', label: tr('themeSystem') },
+            { id: 'light', label: tr('themeLight') },
+            { id: 'dark', label: tr('themeDark') },
+          ]}
+        />
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>
+          {tr('language')}
+        </Text>
+        <SegmentedControl<AppLanguage>
+          value={settings.language}
+          onChange={setLanguage}
+          options={[
+            { id: 'es', label: tr('langEs') },
+            { id: 'en', label: tr('langEn') },
+          ]}
+        />
+
+        {/* Preferencias */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('sectionPreferences')}
+        </Text>
+        <Text style={[styles.label, { color: colors.textMuted }]}>
+          {tr('currency')}
+        </Text>
+        <View style={styles.wrap}>
+          {currencyOptions.map((c) => (
+            <Chip
+              key={c.id}
+              label={c.label}
+              active={settings.currency === c.id}
+              onPress={() => setCurrency(c.id as AppCurrency)}
+            />
+          ))}
         </View>
-      </ScrollView>
-    </>
+
+        <SettingsRow
+          icon={
+            <Ionicons name="notifications-outline" size={20} color={colors.accent} />
+          }
+          title={tr('notifications')}
+          subtitle={tr('notificationsHint')}
+          right={
+            <Switch
+              value={settings.notificationsEnabled}
+              onValueChange={onToggleNotifications}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="phone-portrait-outline" size={20} color={colors.accent} />}
+          title={tr('haptics')}
+          right={
+            <Switch
+              value={settings.hapticsEnabled}
+              onValueChange={setHapticsEnabled}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="calendar-outline" size={20} color={colors.accent} />}
+          title={tr('saturdayBonus')}
+          subtitle={tr('saturdayBonusHint')}
+          right={
+            <Switch
+              value={settings.saturdayBonusEnabled}
+              onValueChange={setSaturdayBonusEnabled}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
+          }
+        />
+
+        {/* IA */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('sectionAi')}
+        </Text>
+        <SettingsRow
+          icon={<Ionicons name="sparkles-outline" size={20} color={colors.accent} />}
+          title={tr('aiTitle')}
+          subtitle={hasKey ? tr('keyActive') : tr('keyMissing')}
+          onPress={() => setAiOpen((v) => !v)}
+          right={
+            <Ionicons
+              name={aiOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.textDim}
+            />
+          }
+        />
+
+        {aiOpen ? (
+          <View style={styles.aiBox}>
+            <Text style={[styles.hint, { color: colors.textMuted }]}>
+              {tr('aiHint')}
+            </Text>
+            <PrimaryButton
+              label={tr('generateKey')}
+              tone="muted"
+              onPress={() => Linking.openURL(KEYS_URL)}
+            />
+            <Field
+              label={tr('apiKey')}
+              value={apiKey}
+              onChangeText={setApiKey}
+              placeholder="sk-proj-..."
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showKey}
+            />
+            <Pressable onPress={() => setShowKey((v) => !v)}>
+              <Text style={[styles.link, { color: colors.accent }]}>
+                {showKey ? tr('hideKey') : tr('showKey')}
+              </Text>
+            </Pressable>
+            <PrimaryButton label={tr('saveKey')} onPress={saveKey} />
+            <PrimaryButton
+              label={testing ? tr('testingKey') : tr('testKey')}
+              tone="muted"
+              onPress={testKey}
+              disabled={testing}
+            />
+            {hasKey ? (
+              <PrimaryButton
+                label={tr('removeKey')}
+                tone="expense"
+                onPress={async () => {
+                  setApiKey('');
+                  await setOpenAiKey('');
+                  setHasKey(false);
+                }}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Datos */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('sectionData')}
+        </Text>
+        <SettingsRow
+          icon={<Ionicons name="share-outline" size={20} color={colors.accent} />}
+          title={tr('exportData')}
+          onPress={exportData}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="chatbubble-outline" size={20} color={colors.accent} />}
+          title={tr('clearChat')}
+          onPress={confirmClearChat}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="trash-outline" size={20} color={colors.expense} />}
+          title={tr('resetApp')}
+          onPress={confirmReset}
+          danger
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+
+        {/* Acerca de */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('sectionAbout')}
+        </Text>
+        <SettingsRow
+          icon={<Ionicons name="information-circle-outline" size={20} color={colors.accent} />}
+          title={tr('version')}
+          subtitle={`Finanzas Personales v${APP_VERSION} · canal ${updateMeta.channel}`}
+        />
+        <SettingsRow
+          icon={<Ionicons name="cloud-download-outline" size={20} color={colors.accent} />}
+          title={checkingUpdate ? tr('checkingUpdates') : tr('checkUpdates')}
+          subtitle="Baja mejoras sin reinstalar (en la app instalada)."
+          onPress={checkUpdates}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="help-circle-outline" size={20} color={colors.accent} />}
+          title={tr('help')}
+          onPress={() => Linking.openURL(HELP_URL)}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="shield-checkmark-outline" size={20} color={colors.accent} />}
+          title={tr('privacy')}
+          subtitle="Local + nube opcional con tu cuenta Firebase."
+          onPress={() =>
+            Alert.alert(
+              tr('privacy'),
+              'Movimientos, metas y efectivo viven en este teléfono y, si iniciás sesión, se sincronizan en tu cuenta Firebase. La API key de OpenAI queda solo en el dispositivo (SecureStore).'
+            )
+          }
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+
+        <Text style={[styles.section, { color: colors.text }]}>
+          {tr('todaySnapshot')}
+        </Text>
+        <Text style={[styles.stat, { color: colors.textMuted }]}>
+          {tr('free')}: {formatMoney(today.libre)}
+        </Text>
+        <Text style={[styles.stat, { color: colors.textMuted }]}>
+          {tr('income')}: {formatMoney(today.giro)}
+        </Text>
+        <Text style={[styles.stat, { color: colors.textMuted }]}>
+          {tr('expense')}: {formatMoney(today.gasto)}
+        </Text>
+      </KeyboardForm>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    gap: spacing.md,
+    paddingBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 10,
+  head: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  block: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
+  cancel: {
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  section: {
+    fontWeight: '700',
+    fontSize: 16,
+    marginTop: 8,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    marginTop: -4,
   },
-  value: {
-    fontSize: 17,
+  wrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  hint: {
+    lineHeight: 20,
+    fontSize: 13,
+  },
+  link: {
     fontWeight: '600',
+    fontSize: 13,
+  },
+  aiBox: {
+    gap: 12,
+    marginTop: -4,
+  },
+  accountBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 8,
+  },
+  outlineBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
     marginTop: 4,
   },
-  btn: {
-    marginTop: 16,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  btnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  btnOutline: {
-    marginTop: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 13,
-    alignItems: 'center',
+  stat: {
+    fontSize: 14,
+    marginTop: -8,
   },
 });

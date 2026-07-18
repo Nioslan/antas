@@ -1,4 +1,4 @@
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
@@ -6,61 +6,115 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-
-import { useAuth } from '@/src/context/AuthContext';
+import { askFinanceCoach } from '../lib/ai';
 import {
+  isCloudSyncAvailable,
+  mergeFinanceStates,
   pullFromCloud,
   pushToCloud,
-  isCloudSyncAvailable,
-} from '@/src/lib/cloudSync';
-import { mergeFinanceStates } from '@/src/lib/mergeFinance';
-import { loadFinanceState, saveFinanceState } from '@/src/lib/storage';
-import {
-  emptyFinanceState,
-  type ChatMessage,
-  type FinanceState,
-  type FixedExpense,
-  type Goal,
-  type Transaction,
-} from '@/src/types/finance';
+} from '../lib/cloudSync';
+import { learnFromTransaction } from '../lib/fixedExpenses';
+import { scheduleFixedReminders } from '../lib/notifications';
+import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
+import { emptyState, loadFinanceState, saveFinanceState } from '../lib/storage';
+import { summarizeCapital, summarizeDay } from '../lib/summary';
+import { useAuth } from './AuthContext';
+import { useSettings } from './SettingsContext';
+import type {
+  CapitalSummary,
+  Category,
+  ChatMessage,
+  DaySummary,
+  FinanceState,
+  GastoCategory,
+  Goal,
+  Transaction,
+  TransactionType,
+} from '../types/finance';
+import type { FixedExpense } from '../types/fixed';
 
 const SYNC_DEBOUNCE_MS = 900;
 
-type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
 
-type FinanceContextValue = {
+function uid(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+interface FinanceContextValue {
   ready: boolean;
   state: FinanceState;
+  today: DaySummary;
+  capital: CapitalSummary;
+  cashNow: number;
+  adjustCashNow: (delta: number) => void;
+  setCashNow: (amount: number) => void;
+  addTransaction: (input: {
+    type: TransactionType;
+    amount: number;
+    category: Category;
+    note?: string;
+    date?: string;
+    time?: string;
+    recovered?: number;
+  }) => void;
+  removeTransaction: (id: string) => void;
+  addGoal: (input: {
+    name: string;
+    targetAmount: number;
+    currentAmount?: number;
+    deadline?: string;
+  }) => void;
+  contributeToGoal: (id: string, amount: number) => void;
+  removeGoal: (id: string) => void;
+  addFixedExpense: (input: {
+    name: string;
+    amount: number;
+    dueDay: number;
+    category: GastoCategory;
+  }) => void;
+  updateFixedExpense: (
+    id: string,
+    patch: Partial<
+      Pick<
+        FixedExpense,
+        'name' | 'amount' | 'dueDay' | 'category' | 'enabled' | 'lastPaidDate'
+      >
+    >
+  ) => void;
+  removeFixedExpense: (id: string) => void;
+  /** Paga el fijo: suma un gasto y deja el botón en Pagado por 5 días */
+  payFixedExpense: (id: string) => boolean;
+  markFixedPaid: (id: string, date?: string) => void;
+  refreshFixedReminders: () => Promise<void>;
+  sendChat: (message: string) => Promise<void>;
+  clearChat: () => void;
+  resetAllData: () => Promise<void>;
+  exportDataJson: () => string;
+  chatting: boolean;
   syncStatus: SyncStatus;
   syncError: string | null;
   lastSyncedAt: string | null;
-  setCashNow: (amount: number) => void;
-  addTransaction: (tx: Omit<Transaction, 'id' | 'createdAt'>) => void;
-  removeTransaction: (id: string) => void;
-  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'savedAmount'> & { savedAmount?: number }) => void;
-  updateGoalSaved: (id: string, savedAmount: number) => void;
-  removeGoal: (id: string) => void;
-  addFixedExpense: (item: Omit<FixedExpense, 'id' | 'createdAt'>) => void;
-  removeFixedExpense: (id: string) => void;
-  setChatMessages: (messages: ChatMessage[]) => void;
   syncNow: () => Promise<void>;
-  replaceState: (next: FinanceState) => Promise<void>;
-  clearAllLocal: () => Promise<void>;
-};
+}
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
-function newId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-export function FinanceProvider({ children }: { children: ReactNode }) {
+export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const { settings, ready: settingsReady } = useSettings();
   const { user } = useAuth();
   const [ready, setReady] = useState(false);
-  const [state, setState] = useState<FinanceState>(emptyFinanceState);
+  const [state, setState] = useState<FinanceState>({
+    transactions: [],
+    goals: [],
+    chatHistory: [],
+    cashNow: 0,
+    fixedExpenses: [],
+    updatedAt: new Date(0).toISOString(),
+  });
+  const [chatting, setChatting] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -69,7 +123,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncingRef = useRef(false);
-  const skipNextPushRef = useRef(false);
+  const skipPushRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -77,22 +131,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = NetInfo.addEventListener((info) => {
-      const isOnline = Boolean(info.isConnected && info.isInternetReachable !== false);
+      const isOnline = Boolean(
+        info.isConnected && info.isInternetReachable !== false
+      );
       setOnline(isOnline);
       if (!isOnline) setSyncStatus('offline');
     });
     return () => unsub();
   }, []);
 
-  const persistLocal = useCallback(async (next: FinanceState) => {
-    await saveFinanceState(next);
-  }, []);
-
   const pushDebounced = useCallback(
     (next: FinanceState) => {
       if (!user || !isCloudSyncAvailable()) return;
-      if (skipNextPushRef.current) {
-        skipNextPushRef.current = false;
+      if (skipPushRef.current) {
+        skipPushRef.current = false;
         return;
       }
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -111,34 +163,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           setSyncError(null);
         } catch (err) {
           setSyncStatus('error');
-          setSyncError(err instanceof Error ? err.message : 'Error al sincronizar');
+          setSyncError(
+            err instanceof Error ? err.message : 'Error al sincronizar'
+          );
         } finally {
           syncingRef.current = false;
         }
       }, SYNC_DEBOUNCE_MS);
     },
-    [online, user],
-  );
-
-  const commit = useCallback(
-    (updater: (prev: FinanceState) => FinanceState) => {
-      setState((prev) => {
-        const base = updater(prev);
-        const next: FinanceState = {
-          ...base,
-          updatedAt: new Date().toISOString(),
-        };
-        void persistLocal(next);
-        pushDebounced(next);
-        return next;
-      });
-    },
-    [persistLocal, pushDebounced],
+    [online, user]
   );
 
   const syncNow = useCallback(async () => {
     if (!user || !isCloudSyncAvailable()) {
-      setSyncError('Iniciá sesión y configurá Firebase para sincronizar.');
+      setSyncError('Iniciá sesión para sincronizar con la nube.');
       setSyncStatus('error');
       return;
     }
@@ -148,26 +186,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (syncingRef.current) return;
-
     syncingRef.current = true;
     setSyncStatus('syncing');
     try {
       const remote = await pullFromCloud(user.uid);
-      const local = stateRef.current;
-      const { state: merged, source } = mergeFinanceStates(local, remote);
-
-      skipNextPushRef.current = true;
+      const { state: merged, source } = mergeFinanceStates(
+        stateRef.current,
+        remote
+      );
+      skipPushRef.current = true;
       setState(merged);
-      await persistLocal(merged);
-
-      // Si local ganó o no había remoto, empujamos; si remoto ganó, igual
-      // empujamos solo si local tenía cambios más nuevos (ya cubierto por merge).
+      await saveFinanceState(merged);
       if (source === 'local' || source === 'local-only') {
         await pushToCloud(user.uid, merged);
-      } else if (source === 'remote') {
-        // Asegurar que la nube queda como fuente de verdad ya bajada
       }
-
       setLastSyncedAt(new Date().toISOString());
       setSyncStatus('synced');
       setSyncError(null);
@@ -177,26 +209,48 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     } finally {
       syncingRef.current = false;
     }
-  }, [online, persistLocal, user]);
+  }, [online, user]);
 
-  // Carga inicial local
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const local = await loadFinanceState();
-      if (cancelled) return;
-      setState(local);
+    if (!settingsReady) return;
+    loadFinanceState().then((loaded) => {
+      const { state: withBonus } = settings.saturdayBonusEnabled
+        ? applySaturdayBonusIfDue(loaded)
+        : { state: loaded };
+      setState(withBonus);
       setReady(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      if (settings.notificationsEnabled) {
+        void scheduleFixedReminders(withBonus.fixedExpenses);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsReady]);
 
-  // Al iniciar sesión: pull + merge + push si hace falta
+  useEffect(() => {
+    if (!ready || !settings.saturdayBonusEnabled) return;
+    const { state: next, applied } = applySaturdayBonusIfDue(state);
+    if (applied) setState(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    ready,
+    settings.saturdayBonusEnabled,
+    state.transactions,
+    state.lastSaturdayBonusWeek,
+  ]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const stamped: FinanceState = skipPushRef.current
+      ? state
+      : { ...state, updatedAt: new Date().toISOString() };
+    void saveFinanceState(stamped);
+    stateRef.current = stamped;
+    pushDebounced(stamped);
+  }, [state, ready, pushDebounced]);
+
+  // Al iniciar sesión: pull + merge
   useEffect(() => {
     if (!ready || !user || !isCloudSyncAvailable()) return;
-
     let cancelled = false;
     (async () => {
       if (!online) {
@@ -207,15 +261,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       try {
         const remote = await pullFromCloud(user.uid);
         if (cancelled) return;
-        const { state: merged, source } = mergeFinanceStates(stateRef.current, remote);
-        skipNextPushRef.current = true;
+        const { state: merged, source } = mergeFinanceStates(
+          stateRef.current,
+          remote
+        );
+        skipPushRef.current = true;
         setState(merged);
-        await persistLocal(merged);
-
+        await saveFinanceState(merged);
         if (source === 'local' || source === 'local-only') {
           await pushToCloud(user.uid, merged);
         }
-
         if (!cancelled) {
           setLastSyncedAt(new Date().toISOString());
           setSyncStatus('synced');
@@ -224,17 +279,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         if (!cancelled) {
           setSyncStatus('error');
-          setSyncError(err instanceof Error ? err.message : 'Error al sincronizar');
+          setSyncError(
+            err instanceof Error ? err.message : 'Error al sincronizar'
+          );
         }
       }
     })();
-
     return () => {
       cancelled = true;
     };
-  }, [online, persistLocal, ready, user?.uid]);
+  }, [online, ready, user?.uid]);
 
-  // Al recuperar conexión, sincronizar
   useEffect(() => {
     if (!ready || !user || !online) return;
     if (syncStatus === 'offline') {
@@ -242,184 +297,384 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
   }, [online, ready, syncNow, syncStatus, user]);
 
-  const setCashNow = useCallback(
-    (amount: number) => {
-      commit((prev) => ({ ...prev, cashNow: Math.max(0, amount) }));
-    },
-    [commit],
+  useEffect(() => {
+    if (!ready || !settings.notificationsEnabled) return;
+    void scheduleFixedReminders(state.fixedExpenses);
+  }, [ready, settings.notificationsEnabled, state.fixedExpenses]);
+
+  const today = useMemo(
+    () => summarizeDay(state.transactions),
+    [state.transactions]
+  );
+
+  const capital = useMemo(
+    () => summarizeCapital(state.transactions),
+    [state.transactions]
   );
 
   const addTransaction = useCallback(
-    (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
-      commit((prev) => ({
+    (input: {
+      type: TransactionType;
+      amount: number;
+      category: Category;
+      note?: string;
+      date?: string;
+      time?: string;
+      recovered?: number;
+    }) => {
+      const amount = Math.abs(input.amount);
+      const now = new Date();
+      const date =
+        input.date ??
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const time =
+        input.time ??
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const [hh, mm] = time.split(':').map(Number);
+      const [y, m, d] = date.split('-').map(Number);
+      const stamped = new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0);
+
+      const tx: Transaction = {
+        id: uid('tx'),
+        type: input.type,
+        amount,
+        category: input.category,
+        note: input.note?.trim() ?? '',
+        date,
+        time,
+        createdAt: stamped.toISOString(),
+        recovered:
+          input.type === 'giro' && input.recovered != null
+            ? Math.min(Math.max(input.recovered, 0), amount)
+            : undefined,
+      };
+      setState((prev) => ({
         ...prev,
-        transactions: [
-          {
-            ...tx,
-            id: newId(),
-            createdAt: new Date().toISOString(),
-          },
-          ...prev.transactions,
-        ],
+        transactions: [tx, ...prev.transactions],
+        fixedExpenses: learnFromTransaction(prev.fixedExpenses, tx),
       }));
     },
-    [commit],
+    []
   );
 
-  const removeTransaction = useCallback(
-    (id: string) => {
-      commit((prev) => ({
-        ...prev,
-        transactions: prev.transactions.filter((t) => t.id !== id),
-      }));
-    },
-    [commit],
-  );
+  const removeTransaction = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      transactions: prev.transactions.filter((t) => t.id !== id),
+    }));
+  }, []);
 
   const addGoal = useCallback(
-    (goal: Omit<Goal, 'id' | 'createdAt' | 'savedAmount'> & { savedAmount?: number }) => {
-      commit((prev) => ({
-        ...prev,
-        goals: [
-          {
-            id: newId(),
-            title: goal.title,
-            targetAmount: goal.targetAmount,
-            savedAmount: goal.savedAmount ?? 0,
-            createdAt: new Date().toISOString(),
-          },
-          ...prev.goals,
-        ],
-      }));
+    (input: {
+      name: string;
+      targetAmount: number;
+      currentAmount?: number;
+      deadline?: string;
+    }) => {
+      const goal: Goal = {
+        id: uid('goal'),
+        name: input.name.trim(),
+        targetAmount: Math.abs(input.targetAmount),
+        currentAmount: Math.abs(input.currentAmount ?? 0),
+        deadline: input.deadline || undefined,
+        createdAt: new Date().toISOString(),
+      };
+      setState((prev) => ({ ...prev, goals: [goal, ...prev.goals] }));
     },
-    [commit],
+    []
   );
 
-  const updateGoalSaved = useCallback(
-    (id: string, savedAmount: number) => {
-      commit((prev) => ({
+  const contributeToGoal = useCallback((id: string, amount: number) => {
+    setState((prev) => ({
+      ...prev,
+      goals: prev.goals.map((g) =>
+        g.id === id
+          ? {
+              ...g,
+              currentAmount: Math.min(
+                g.targetAmount,
+                g.currentAmount + Math.abs(amount)
+              ),
+            }
+          : g
+      ),
+    }));
+  }, []);
+
+  const removeGoal = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      goals: prev.goals.filter((g) => g.id !== id),
+    }));
+  }, []);
+
+  const addFixedExpense = useCallback(
+    (input: {
+      name: string;
+      amount: number;
+      dueDay: number;
+      category: GastoCategory;
+    }) => {
+      const now = new Date().toISOString();
+      const item: FixedExpense = {
+        id: uid('fix'),
+        name: input.name.trim(),
+        amount: Math.abs(input.amount),
+        dueDay: Math.min(31, Math.max(1, Math.round(input.dueDay))),
+        category: input.category,
+        enabled: true,
+        learnedDays: [Math.min(31, Math.max(1, Math.round(input.dueDay)))],
+        createdAt: now,
+        updatedAt: now,
+      };
+      setState((prev) => ({
         ...prev,
-        goals: prev.goals.map((g) =>
-          g.id === id ? { ...g, savedAmount: Math.max(0, savedAmount) } : g,
+        fixedExpenses: [item, ...prev.fixedExpenses],
+      }));
+    },
+    []
+  );
+
+  const updateFixedExpense = useCallback(
+    (
+      id: string,
+      patch: Partial<
+        Pick<
+          FixedExpense,
+          'name' | 'amount' | 'dueDay' | 'category' | 'enabled' | 'lastPaidDate'
+        >
+      >
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        fixedExpenses: prev.fixedExpenses.map((f) =>
+          f.id === id
+            ? {
+                ...f,
+                ...patch,
+                dueDay:
+                  patch.dueDay != null
+                    ? Math.min(31, Math.max(1, Math.round(patch.dueDay)))
+                    : f.dueDay,
+                amount:
+                  patch.amount != null ? Math.abs(patch.amount) : f.amount,
+                updatedAt: new Date().toISOString(),
+              }
+            : f
         ),
       }));
     },
-    [commit],
+    []
   );
 
-  const removeGoal = useCallback(
-    (id: string) => {
-      commit((prev) => ({
-        ...prev,
-        goals: prev.goals.filter((g) => g.id !== id),
-      }));
-    },
-    [commit],
-  );
+  const removeFixedExpense = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      fixedExpenses: prev.fixedExpenses.filter((f) => f.id !== id),
+    }));
+  }, []);
 
-  const addFixedExpense = useCallback(
-    (item: Omit<FixedExpense, 'id' | 'createdAt'>) => {
-      commit((prev) => ({
-        ...prev,
-        fixedExpenses: [
-          {
-            ...item,
-            id: newId(),
-            createdAt: new Date().toISOString(),
-          },
-          ...prev.fixedExpenses,
-        ],
-      }));
-    },
-    [commit],
-  );
+  const payFixedExpense = useCallback((id: string): boolean => {
+    const bill = state.fixedExpenses.find((f) => f.id === id);
+    if (!bill) return false;
 
-  const removeFixedExpense = useCallback(
-    (id: string) => {
-      commit((prev) => ({
-        ...prev,
-        fixedExpenses: prev.fixedExpenses.filter((f) => f.id !== id),
-      }));
-    },
-    [commit],
-  );
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const setChatMessages = useCallback(
-    (messages: ChatMessage[]) => {
-      commit((prev) => ({ ...prev, chatMessages: messages }));
-    },
-    [commit],
-  );
-
-  const replaceState = useCallback(
-    async (next: FinanceState) => {
-      const stamped = { ...next, updatedAt: new Date().toISOString() };
-      setState(stamped);
-      await persistLocal(stamped);
-      pushDebounced(stamped);
-    },
-    [persistLocal, pushDebounced],
-  );
-
-  const clearAllLocal = useCallback(async () => {
-    const empty = emptyFinanceState();
-    empty.updatedAt = new Date().toISOString();
-    setState(empty);
-    await persistLocal(empty);
-    if (user && isCloudSyncAvailable() && online) {
-      try {
-        await pushToCloud(user.uid, empty);
-      } catch {
-        // offline / error: local ya limpio
-      }
+    if (bill.lastPaidDate) {
+      const [y1, m1, d1] = date.split('-').map(Number);
+      const [y2, m2, d2] = bill.lastPaidDate.split('-').map(Number);
+      const elapsed = Math.round(
+        (new Date(y1, m1 - 1, d1).getTime() -
+          new Date(y2, m2 - 1, d2).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+      if (elapsed >= 0 && elapsed < 5) return false;
     }
-  }, [online, persistLocal, user]);
 
-  const value = useMemo(
-    () => ({
-      ready,
-      state,
-      syncStatus,
-      syncError,
-      lastSyncedAt,
-      setCashNow,
-      addTransaction,
-      removeTransaction,
-      addGoal,
-      updateGoalSaved,
-      removeGoal,
-      addFixedExpense,
-      removeFixedExpense,
-      setChatMessages,
-      syncNow,
-      replaceState,
-      clearAllLocal,
-    }),
-    [
-      ready,
-      state,
-      syncStatus,
-      syncError,
-      lastSyncedAt,
-      setCashNow,
-      addTransaction,
-      removeTransaction,
-      addGoal,
-      updateGoalSaved,
-      removeGoal,
-      addFixedExpense,
-      removeFixedExpense,
-      setChatMessages,
-      syncNow,
-      replaceState,
-      clearAllLocal,
-    ],
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const day = Number(date.slice(8, 10));
+
+    setState((prev) => {
+      const current = prev.fixedExpenses.find((f) => f.id === id);
+      if (!current) return prev;
+
+      const learnedDays = [...current.learnedDays, day].slice(-8);
+      const sorted = [...learnedDays].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const dueDay =
+        sorted.length % 2 === 0
+          ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+          : sorted[mid];
+
+      const tx: Transaction = {
+        id: uid('tx'),
+        type: 'gasto',
+        amount: current.amount,
+        category: current.category,
+        note: current.name,
+        date,
+        time,
+        createdAt: now.toISOString(),
+      };
+
+      return {
+        ...prev,
+        transactions: [tx, ...prev.transactions],
+        fixedExpenses: prev.fixedExpenses.map((f) =>
+          f.id === id
+            ? {
+                ...f,
+                lastPaidDate: date,
+                learnedDays,
+                dueDay,
+                updatedAt: now.toISOString(),
+              }
+            : f
+        ),
+      };
+    });
+
+    return true;
+  }, [state.fixedExpenses]);
+
+  const markFixedPaid = useCallback((id: string, date?: string) => {
+    const paid =
+      date ??
+      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    const day = Number(paid.slice(8, 10));
+    setState((prev) => ({
+      ...prev,
+      fixedExpenses: prev.fixedExpenses.map((f) => {
+        if (f.id !== id) return f;
+        const learnedDays = [...f.learnedDays, day].slice(-8);
+        const sorted = [...learnedDays].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        const dueDay =
+          sorted.length % 2 === 0
+            ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+            : sorted[mid];
+        return {
+          ...f,
+          lastPaidDate: paid,
+          learnedDays,
+          dueDay,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+  }, []);
+
+  const refreshFixedReminders = useCallback(async () => {
+    await scheduleFixedReminders(state.fixedExpenses);
+  }, [state.fixedExpenses]);
+
+  const sendChat = useCallback(
+    async (message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed || chatting) return;
+
+      const userMsg: ChatMessage = {
+        id: uid('msg'),
+        role: 'user',
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+      };
+
+      setState((prev) => ({
+        ...prev,
+        chatHistory: [...prev.chatHistory, userMsg],
+      }));
+      setChatting(true);
+
+      try {
+        const snapshot = {
+          ...state,
+          chatHistory: [...state.chatHistory, userMsg],
+        };
+        const { reply } = await askFinanceCoach(snapshot, trimmed);
+        const assistantMsg: ChatMessage = {
+          id: uid('msg'),
+          role: 'assistant',
+          content: reply,
+          createdAt: new Date().toISOString(),
+        };
+        setState((prev) => ({
+          ...prev,
+          chatHistory: [...prev.chatHistory, assistantMsg],
+        }));
+      } finally {
+        setChatting(false);
+      }
+    },
+    [chatting, state]
   );
 
-  return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
+  const clearChat = useCallback(() => {
+    setState((prev) => ({ ...prev, chatHistory: [] }));
+  }, []);
+
+  const resetAllData = useCallback(async () => {
+    setState(emptyState);
+    await saveFinanceState(emptyState);
+  }, []);
+
+  const exportDataJson = useCallback(() => {
+    return JSON.stringify(state, null, 2);
+  }, [state]);
+
+  const adjustCashNow = useCallback((delta: number) => {
+    if (!Number.isFinite(delta) || delta === 0) return;
+    setState((prev) => ({
+      ...prev,
+      cashNow: Math.round((prev.cashNow + delta) * 100) / 100,
+    }));
+  }, []);
+
+  const setCashNow = useCallback((amount: number) => {
+    if (!Number.isFinite(amount)) return;
+    setState((prev) => ({
+      ...prev,
+      cashNow: Math.round(amount * 100) / 100,
+    }));
+  }, []);
+
+  const value: FinanceContextValue = {
+    ready,
+    state,
+    today,
+    capital,
+    cashNow: state.cashNow,
+    adjustCashNow,
+    setCashNow,
+    addTransaction,
+    removeTransaction,
+    addGoal,
+    contributeToGoal,
+    removeGoal,
+    addFixedExpense,
+    updateFixedExpense,
+    removeFixedExpense,
+    payFixedExpense,
+    markFixedPaid,
+    refreshFixedReminders,
+    sendChat,
+    clearChat,
+    resetAllData,
+    exportDataJson,
+    chatting,
+    syncStatus,
+    syncError,
+    lastSyncedAt,
+    syncNow,
+  };
+
+  return (
+    <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>
+  );
 }
 
-export function useFinance(): FinanceContextValue {
+export function useFinance() {
   const ctx = useContext(FinanceContext);
   if (!ctx) throw new Error('useFinance debe usarse dentro de FinanceProvider');
   return ctx;

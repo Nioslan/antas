@@ -1,53 +1,88 @@
-export type TransactionType = 'income' | 'expense';
+import type { FixedExpense } from './fixed';
 
-export type Transaction = {
+export type { FixedExpense };
+
+export type TransactionType = 'inversion' | 'gasto' | 'giro';
+
+export type InversionCategory = 'inversiones' | 'ahorro' | 'otros';
+
+export type GastoCategory =
+  | 'comida'
+  | 'transporte'
+  | 'gasolina'
+  | 'vivienda'
+  | 'salud'
+  | 'ocio'
+  | 'personal'
+  | 'inversiones'
+  | 'otros';
+
+export type GiroCategory =
+  | 'salario'
+  | 'trabajo'
+  | 'freelance'
+  | 'ventas'
+  | 'otros';
+
+export type Category = InversionCategory | GastoCategory | GiroCategory;
+
+export interface Transaction {
   id: string;
   type: TransactionType;
   amount: number;
+  /** Opcional: por compatibilidad con datos viejos */
+  recovered?: number;
+  category: Category;
   note: string;
-  category: string;
   date: string; // YYYY-MM-DD
-  createdAt: string; // ISO
-};
+  /** Hora local HH:mm */
+  time?: string;
+  createdAt: string;
+}
 
-export type Goal = {
+export interface Goal {
   id: string;
-  title: string;
+  name: string;
   targetAmount: number;
-  savedAmount: number;
+  currentAmount: number;
+  deadline?: string;
   createdAt: string;
-};
+}
 
-export type FixedExpense = {
-  id: string;
-  title: string;
-  amount: number;
-  dayOfMonth: number;
-  notify: boolean;
-  createdAt: string;
-};
-
-export type ChatMessage = {
+export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
-};
+}
 
-export type FinanceState = {
+export interface FinanceState {
   transactions: Transaction[];
   goals: Goal[];
-  fixedExpenses: FixedExpense[];
+  chatHistory: ChatMessage[];
+  /** Dinero actual en mano / bolsillo, editable a voluntad */
   cashNow: number;
-  chatMessages: ChatMessage[];
-  updatedAt: string; // ISO — último write local o nube
-};
+  /** Lunes de la semana a la que ya se aplicó el 20% del sábado */
+  lastSaturdayBonusWeek?: string;
+  fixedExpenses: FixedExpense[];
+  /** ISO — último write local o nube (para merge de sync) */
+  updatedAt?: string;
+}
 
-export const emptyFinanceState = (): FinanceState => ({
-  transactions: [],
-  goals: [],
-  fixedExpenses: [],
-  cashNow: 0,
-  chatMessages: [],
-  updatedAt: new Date(0).toISOString(),
-});
+export interface DaySummary {
+  inversion: number;
+  gasto: number;
+  giro: number;
+  recuperado: number;
+  ganancia: number;
+  /** Libre = ingresos − gastos (− inversiones) */
+  libre: number;
+}
+
+export interface CapitalSummary {
+  invertidoTotal: number;
+  recuperadoTotal: number;
+  pendiente: number;
+  gananciaTotal: number;
+  gastoTotal: number;
+}

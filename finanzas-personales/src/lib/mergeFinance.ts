@@ -1,12 +1,12 @@
-import type { FinanceState } from '@/src/types/finance';
+import type { FinanceState } from '../types/finance';
 
 /**
  * Merge seguro por updatedAt: gana el write más reciente.
- * Si empatan, prioriza local (caché offline reciente).
+ * Si empatan o falta timestamp remoto, prioriza local.
  */
 export function mergeFinanceStates(
   local: FinanceState,
-  remote: FinanceState | null,
+  remote: FinanceState | null
 ): { state: FinanceState; source: 'local' | 'remote' | 'local-only' } {
   if (!remote) {
     return { state: local, source: 'local-only' };

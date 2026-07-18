@@ -1,27 +1,34 @@
 # Finanzas Personales
 
-App Expo (React Native) para movimientos, metas, fijos y efectivo, con **cuenta Firebase** y sync a Firestore.
+App móvil (Expo) para controlar ingresos, gastos, presupuestos y metas, con un **coach de IA** desde el primer día.
 
-## Arranque
+## Qué incluye
+
+- Dashboard del mes (ingresos, gastos, balance)
+- Registro de movimientos por categoría
+- Metas de ahorro con progreso
+- Presupuestos mensuales por categoría
+- Coach IA:
+  - **Sin API key**: coach local que analiza tus números
+  - **Con OpenAI**: respuestas más naturales (clave en Ajustes)
+
+## Cómo correrla
 
 ```bash
-cd finanzas-personales
-npm install
-npx expo start --web
+cd C:\Users\niosl\Projects\finanzas-personales
+npm start
 ```
 
-Preview local: http://localhost:8081
+Escaneá el QR con **Expo Go** en el celular.
 
-## Cuenta en la nube
+## OpenAI (opcional)
 
-1. Seguí [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
-2. Pegá el `firebaseConfig` en `src/lib/firebaseConfig.ts` (o `.env` desde `.env.example`)
-3. En la app: **Ajustes → Cuenta → Iniciar sesión**
+1. Abrí la app → Ajustes (engranaje)
+2. Pegá tu API key de OpenAI (`sk-...`)
+3. Guardá — el coach pasa a usar GPT
 
-Sin Firebase configurado la app sigue funcionando offline con AsyncStorage.
+La clave se guarda en el dispositivo con Secure Store. No se sube a ningún servidor propio.
 
-## Sync
+## Nota
 
-- Documento: `users/{uid}`
-- Campos: `transactions`, `goals`, `fixedExpenses`, `cashNow`, `chatMessages`, `updatedAt`
-- Offline-first + debounce al guardar; merge por `updatedAt` al login / “Sincronizar ahora”
+Este proyecto es **independiente** de AntasPC.

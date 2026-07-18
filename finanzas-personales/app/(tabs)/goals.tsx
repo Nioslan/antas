@@ -1,116 +1,176 @@
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-
-import { useFinance } from '@/src/context/FinanceContext';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-
-function money(n: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardForm } from '../../src/components/KeyboardForm';
+import { Card, PrimaryButton, Screen, Subtitle, Title } from '../../src/components/ui';
+import { useFinance } from '../../src/context/FinanceContext';
+import { formatMoney } from '../../src/lib/categories';
+import { colors, radius, spacing } from '../../src/theme';
 
 export default function GoalsScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const c = Colors[scheme];
-  const { state, updateGoalSaved, removeGoal, removeFixedExpense } = useFinance();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { state, contributeToGoal, removeGoal } = useFinance();
+  const [contrib, setContrib] = useState<Record<string, string>>({});
 
   return (
-    <View style={[styles.root, { backgroundColor: c.background }]}>
-      <FlatList
-        data={state.goals}
-        keyExtractor={(g) => g.id}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <View style={{ marginBottom: 16 }}>
-            <Text style={[styles.title, { color: c.text }]}>Metas</Text>
-            <Text style={{ color: c.muted, marginBottom: 16 }}>
-              Se sincronizan con tu cuenta cuando iniciás sesión.
-            </Text>
-            <Text style={[styles.subtitle, { color: c.text }]}>
-              Fijos ({state.fixedExpenses.length})
-            </Text>
-            {state.fixedExpenses.length === 0 ? (
-              <Text style={{ color: c.muted, marginBottom: 12 }}>Sin gastos fijos.</Text>
-            ) : (
-              state.fixedExpenses.map((f) => (
-                <Pressable
-                  key={f.id}
-                  onLongPress={() =>
-                    Alert.alert('Eliminar fijo', f.title, [
-                      { text: 'Cancelar', style: 'cancel' },
-                      {
-                        text: 'Eliminar',
-                        style: 'destructive',
-                        onPress: () => removeFixedExpense(f.id),
-                      },
-                    ])
-                  }
-                  style={[styles.row, { borderColor: c.border, backgroundColor: c.card }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: c.text, fontWeight: '700' }}>{f.title}</Text>
-                    <Text style={{ color: c.muted }}>Día {f.dayOfMonth}</Text>
-                  </View>
-                  <Text style={{ color: c.text, fontWeight: '700' }}>{money(f.amount)}</Text>
-                </Pressable>
-              ))
-            )}
-            <Text style={[styles.subtitle, { color: c.text, marginTop: 8 }]}>Tus metas</Text>
+    <Screen style={{ paddingTop: insets.top + 8 }}>
+      <KeyboardForm contentContainerStyle={styles.content} bottomOffset={80}>
+        <View style={styles.head}>
+          <View style={{ flex: 1 }}>
+            <Title>Metas</Title>
+            <Subtitle>Ahorro personal con lo que te queda libre.</Subtitle>
           </View>
-        }
-        ListEmptyComponent={<Text style={{ color: c.muted }}>Creá una meta desde Inicio.</Text>}
-        renderItem={({ item }) => {
-          const pct = item.targetAmount > 0 ? Math.min(1, item.savedAmount / item.targetAmount) : 0;
-          return (
-            <Pressable
-              onLongPress={() =>
-                Alert.alert('Eliminar meta', item.title, [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Eliminar',
-                    style: 'destructive',
-                    onPress: () => removeGoal(item.id),
-                  },
-                ])
-              }
-              onPress={() => updateGoalSaved(item.id, item.savedAmount + 1000)}
-              style={[styles.row, { borderColor: c.border, backgroundColor: c.card }]}>
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={{ color: c.text, fontWeight: '700' }}>{item.title}</Text>
-                <Text style={{ color: c.muted }}>
-                  {money(item.savedAmount)} / {money(item.targetAmount)}
+          <PrimaryButton label="+ Meta" onPress={() => router.push('/add-goal')} />
+        </View>
+
+        {state.goals.length === 0 ? (
+          <Card style={styles.empty}>
+            <Ionicons name="flag-outline" size={36} color={colors.textDim} />
+            <Text style={styles.emptyText}>
+              Creá tu primera meta: fondo de emergencia, viaje, deuda, lo que sea.
+            </Text>
+          </Card>
+        ) : (
+          state.goals.map((goal) => {
+            const pct = Math.min(
+              100,
+              Math.round((goal.currentAmount / goal.targetAmount) * 100)
+            );
+            return (
+              <Card key={goal.id} style={styles.goal}>
+                <View style={styles.goalTop}>
+                  <Text style={styles.goalName}>{goal.name}</Text>
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert('Eliminar meta', `¿Borrar "${goal.name}"?`, [
+                        { text: 'Cancelar', style: 'cancel' },
+                        {
+                          text: 'Eliminar',
+                          style: 'destructive',
+                          onPress: () => removeGoal(goal.id),
+                        },
+                      ])
+                    }
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.textDim} />
+                  </Pressable>
+                </View>
+                <Text style={styles.goalAmounts}>
+                  {formatMoney(goal.currentAmount)} / {formatMoney(goal.targetAmount)}
                 </Text>
-                <View style={[styles.barBg, { backgroundColor: c.border }]}>
-                  <View
-                    style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: c.tint }]}
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { width: `${pct}%` }]} />
+                </View>
+                <Text style={styles.pct}>{pct}% completado</Text>
+
+                <View style={styles.contribRow}>
+                  <TextInput
+                    style={styles.contribInput}
+                    placeholder="Aportar $"
+                    placeholderTextColor={colors.textDim}
+                    keyboardType="decimal-pad"
+                    value={contrib[goal.id] ?? ''}
+                    onChangeText={(v) =>
+                      setContrib((prev) => ({ ...prev, [goal.id]: v }))
+                    }
+                  />
+                  <PrimaryButton
+                    label="Sumar"
+                    onPress={() => {
+                      const amount = Number(contrib[goal.id]?.replace(',', '.'));
+                      if (!amount || amount <= 0) return;
+                      contributeToGoal(goal.id, amount);
+                      setContrib((prev) => ({ ...prev, [goal.id]: '' }));
+                    }}
                   />
                 </View>
-                <Text style={{ color: c.muted, fontSize: 12 }}>Tocá para +$1.000</Text>
-              </View>
-            </Pressable>
-          );
-        }}
-      />
-    </View>
+              </Card>
+            );
+          })
+        )}
+      </KeyboardForm>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  subtitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  row: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+  content: {
+    gap: spacing.md,
+  },
+  head: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  empty: {
     alignItems: 'center',
+    gap: 12,
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontFamily: 'DMSans_400Regular',
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  goal: {
     gap: 10,
   },
-  barBg: { height: 8, borderRadius: 999, overflow: 'hidden' },
-  barFill: { height: '100%' },
+  goalTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  goalName: {
+    fontFamily: 'Fraunces_600SemiBold',
+    fontSize: 22,
+    color: colors.text,
+  },
+  goalAmounts: {
+    fontFamily: 'DMSans_500Medium',
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  barTrack: {
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bgElevated,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+  },
+  pct: {
+    fontFamily: 'DMSans_700Bold',
+    color: colors.accent,
+    fontSize: 13,
+  },
+  contribRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  contribInput: {
+    flex: 1,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    color: colors.text,
+    fontFamily: 'DMSans_400Regular',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
 });

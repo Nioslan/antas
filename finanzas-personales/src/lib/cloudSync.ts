@@ -1,9 +1,8 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-
-import { getFirebaseDb, isFirebaseConfigured } from '@/src/lib/firebase';
-import { mergeFinanceStates } from '@/src/lib/mergeFinance';
-import type { FinanceState } from '@/src/types/finance';
-import { emptyFinanceState } from '@/src/types/finance';
+import { getFirebaseDb, isFirebaseConfigured } from './firebase';
+import { mergeFinanceStates } from './mergeFinance';
+import { emptyState } from './storage';
+import type { FinanceState } from '../types/finance';
 
 export { mergeFinanceStates };
 
@@ -12,7 +11,8 @@ export type CloudFinanceDoc = {
   goals: FinanceState['goals'];
   fixedExpenses: FinanceState['fixedExpenses'];
   cashNow: number;
-  chatMessages: FinanceState['chatMessages'];
+  chatHistory: FinanceState['chatHistory'];
+  lastSaturdayBonusWeek?: string;
   updatedAt: string;
   syncedAt?: unknown;
 };
@@ -25,7 +25,6 @@ export function isCloudSyncAvailable(): boolean {
   return isFirebaseConfigured();
 }
 
-/** Sube el estado completo del usuario a Firestore. */
 export async function pushToCloud(uid: string, state: FinanceState): Promise<void> {
   if (!isCloudSyncAvailable()) {
     throw new Error('Firebase no configurado');
@@ -36,7 +35,8 @@ export async function pushToCloud(uid: string, state: FinanceState): Promise<voi
     goals: state.goals,
     fixedExpenses: state.fixedExpenses,
     cashNow: state.cashNow,
-    chatMessages: state.chatMessages,
+    chatHistory: state.chatHistory,
+    lastSaturdayBonusWeek: state.lastSaturdayBonusWeek,
     updatedAt: state.updatedAt || new Date().toISOString(),
     syncedAt: serverTimestamp(),
   };
@@ -44,7 +44,6 @@ export async function pushToCloud(uid: string, state: FinanceState): Promise<voi
   await setDoc(userDocRef(uid), payload, { merge: true });
 }
 
-/** Baja el estado desde Firestore. null si no hay documento. */
 export async function pullFromCloud(uid: string): Promise<FinanceState | null> {
   if (!isCloudSyncAvailable()) {
     throw new Error('Firebase no configurado');
@@ -55,12 +54,13 @@ export async function pullFromCloud(uid: string): Promise<FinanceState | null> {
 
   const data = snap.data() as Partial<CloudFinanceDoc>;
   return {
-    ...emptyFinanceState(),
+    ...emptyState,
     transactions: data.transactions ?? [],
     goals: data.goals ?? [],
     fixedExpenses: data.fixedExpenses ?? [],
     cashNow: typeof data.cashNow === 'number' ? data.cashNow : 0,
-    chatMessages: data.chatMessages ?? [],
+    chatHistory: data.chatHistory ?? [],
+    lastSaturdayBonusWeek: data.lastSaturdayBonusWeek,
     updatedAt: data.updatedAt ?? new Date(0).toISOString(),
   };
 }

@@ -1,27 +1,27 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Redirect, Stack, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-
-import { useAuth } from '@/src/context/AuthContext';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardForm } from '../src/components/KeyboardForm';
+import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
+import { useAuth } from '../src/context/AuthContext';
+import { spacing } from '../src/theme';
+import { useSettings } from '../src/context/SettingsContext';
 
 export default function LoginScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const c = Colors[scheme];
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, loading, configured, error, clearError, signInEmail, signUpEmail, signInWithGoogle } =
-    useAuth();
+  const { colors } = useSettings();
+  const {
+    user,
+    loading,
+    configured,
+    error,
+    clearError,
+    signInEmail,
+    signUpEmail,
+    signInWithGoogle,
+  } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -43,11 +43,8 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      if (mode === 'login') {
-        await signInEmail(email, password);
-      } else {
-        await signUpEmail(email, password, name);
-      }
+      if (mode === 'login') await signInEmail(email, password);
+      else await signUpEmail(email, password, name);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Error de acceso');
     } finally {
@@ -71,129 +68,125 @@ export default function LoginScreen() {
   const message = localError || error;
 
   return (
-    <>
-      <Stack.Screen options={{ title: mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta' }} />
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <KeyboardAvoidingView
-        style={[styles.root, { backgroundColor: c.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.hero, { backgroundColor: c.forest }]}>
-          <Text style={styles.brand}>Finanzas</Text>
-          <Text style={styles.heroText}>
-            Tu historial viaja con tu cuenta. Entrá y recuperá movimientos, metas y fijos en
-            cualquier teléfono.
-          </Text>
+    <Screen style={{ paddingTop: insets.top + 12 }}>
+      <KeyboardForm contentContainerStyle={styles.content} bottomOffset={40}>
+        <View style={styles.head}>
+          <View style={{ flex: 1 }}>
+            <Title>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</Title>
+            <Subtitle>
+              Tu historial viaja con tu cuenta. Recuperá movimientos, metas y fijos en
+              cualquier teléfono.
+            </Subtitle>
+          </View>
+          <Pressable onPress={() => router.back()}>
+            <Text style={[styles.cancel, { color: colors.textMuted }]}>Cerrar</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.form}>
-          {!configured ? (
-            <View style={[styles.banner, { backgroundColor: '#FFF4D6', borderColor: '#E6C86A' }]}>
-              <Text style={{ color: '#5C4B12', fontWeight: '600' }}>
-                Firebase todavía no está configurado. Completá `src/lib/firebaseConfig.ts` (ver
-                FIREBASE_SETUP.md).
-              </Text>
-            </View>
-          ) : null}
-
-          {mode === 'register' ? (
-            <TextInput
-              style={[styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.card }]}
-              placeholder="Nombre (opcional)"
-              placeholderTextColor={c.muted}
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          ) : null}
-
-          <TextInput
-            style={[styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.card }]}
-            placeholder="Email"
-            placeholderTextColor={c.muted}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <TextInput
-            style={[styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.card }]}
-            placeholder="Contraseña"
-            placeholderTextColor={c.muted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete={mode === 'login' ? 'password' : 'new-password'}
-          />
-
-          {message ? <Text style={[styles.error, { color: c.danger }]}>{message}</Text> : null}
-
-          <Pressable
-            style={[styles.primaryBtn, { backgroundColor: c.tint, opacity: busy ? 0.7 : 1 }]}
-            disabled={busy || !configured}
-            onPress={submit}>
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>
-                {mode === 'login' ? 'Entrar' : 'Crear cuenta'}
-              </Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            style={[styles.googleBtn, { borderColor: c.border, backgroundColor: c.card }]}
-            disabled={busy || !configured}
-            onPress={onGoogle}>
-            <Text style={[styles.googleBtnText, { color: c.text }]}>Continuar con Google</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              setMode((m) => (m === 'login' ? 'register' : 'login'));
-              clearError();
-              setLocalError(null);
-            }}>
-            <Text style={[styles.switchText, { color: c.muted }]}>
-              {mode === 'login'
-                ? '¿No tenés cuenta? Crear una'
-                : '¿Ya tenés cuenta? Iniciar sesión'}
+        {!configured ? (
+          <View
+            style={[
+              styles.banner,
+              { backgroundColor: colors.bgCard, borderColor: colors.border },
+            ]}>
+            <Text style={{ color: colors.textMuted, lineHeight: 20 }}>
+              Firebase no configurado. Completá src/lib/firebaseConfig.ts.
             </Text>
-          </Pressable>
+          </View>
+        ) : null}
 
-          <Link href="/(tabs)" style={styles.skip}>
-            <Text style={{ color: c.muted }}>Seguir sin cuenta (solo este teléfono)</Text>
-          </Link>
-        </View>
-      </KeyboardAvoidingView>
-    </>
+        {mode === 'register' ? (
+          <Field
+            label="Nombre (opcional)"
+            value={name}
+            onChangeText={setName}
+            placeholder="Tu nombre"
+            autoCapitalize="words"
+          />
+        ) : null}
+
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="tu@email.com"
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <Field
+          label="Contraseña"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Mínimo 6 caracteres"
+          secureTextEntry
+        />
+
+        {message ? (
+          <Text style={{ color: colors.expense, marginBottom: 8 }}>{message}</Text>
+        ) : null}
+
+        <PrimaryButton
+          label={mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+          onPress={submit}
+          disabled={busy || !configured}
+        />
+
+        <Pressable
+          style={[
+            styles.googleBtn,
+            { borderColor: colors.border, backgroundColor: colors.bgCard },
+            (busy || !configured) && { opacity: 0.6 },
+          ]}
+          disabled={busy || !configured}
+          onPress={onGoogle}>
+          {busy ? (
+            <ActivityIndicator color={colors.accent} />
+          ) : (
+            <Text style={{ color: colors.text, fontWeight: '700' }}>
+              Continuar con Google
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            setMode((m) => (m === 'login' ? 'register' : 'login'));
+            clearError();
+            setLocalError(null);
+          }}>
+          <Text style={[styles.switchText, { color: colors.textMuted }]}>
+            {mode === 'login'
+              ? '¿No tenés cuenta? Crear una'
+              : '¿Ya tenés cuenta? Iniciar sesión'}
+          </Text>
+        </Pressable>
+
+        <Pressable onPress={() => router.replace('/(tabs)')}>
+          <Text style={[styles.switchText, { color: colors.textMuted }]}>
+            Seguir sin cuenta (solo este teléfono)
+          </Text>
+        </Pressable>
+      </KeyboardForm>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  hero: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 32,
+  content: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: 40,
+    gap: 10,
   },
-  brand: {
-    color: '#E8FFF5',
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 10,
-  },
-  heroText: {
-    color: '#C9EBD9',
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 360,
-  },
-  form: {
-    flex: 1,
-    padding: 24,
+  head: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
+    marginBottom: 8,
+  },
+  cancel: {
+    fontWeight: '600',
+    fontSize: 16,
+    paddingTop: 4,
   },
   banner: {
     borderWidth: 1,
@@ -201,44 +194,16 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 4,
   },
-  input: {
+  googleBtn: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    fontSize: 16,
-  },
-  primaryBtn: {
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
-  primaryBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  googleBtn: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  googleBtnText: {
-    fontWeight: '600',
-    fontSize: 16,
-  },
   switchText: {
     textAlign: 'center',
-    marginTop: 8,
-    fontSize: 14,
-  },
-  skip: {
-    marginTop: 16,
-    alignSelf: 'center',
-  },
-  error: {
+    marginTop: 10,
     fontSize: 14,
   },
 });

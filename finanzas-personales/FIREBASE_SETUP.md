@@ -38,9 +38,15 @@ Sin este paso el login en la nube no puede funcionar. El plan gratuito Spark alc
    ```
 
 4. Guardá y esperá 2–5 minutos (a veces hasta 1 hora) a que Google propague el cliente OAuth.
-5. Descargá `google-services.json` si EAS lo pide más adelante.
+5. **Importante:** en la pantalla “Agrega el SDK de Firebase / Instrucciones para Gradle”
+   **no copies nada de Gradle**. Esta app es Expo: Firebase ya está por JS.
+6. En esa misma pantalla tocá **Descargar google-services.json** y guardalo como:
 
-> Tip: en Firebase → Project settings → Your apps → Android → Add fingerprint.
+   `finanzas-personales/google-services.json`
+
+   (el `app.json` ya apunta a ese archivo).
+
+> Tip fingerprint: Firebase → Project settings → Your apps → Android → Add fingerprint.
 
 ## 5. Pegar config en el proyecto
 

@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { askFinanceCoach } from '../lib/ai';
 import {
   isCloudSyncAvailable,
@@ -128,11 +129,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  // No usamos @react-native-community/netinfo: ese módulo nativo no está
-  // en el APK instalado y rompía la app en negro vía OTA. Detectamos offline
-  // por errores de red al sincronizar.
   useEffect(() => {
-    setOnline(true);
+    const unsub = NetInfo.addEventListener((info) => {
+      const isOnline = Boolean(
+        info.isConnected && info.isInternetReachable !== false
+      );
+      setOnline(isOnline);
+      if (!isOnline) setSyncStatus('offline');
+    });
+    return () => unsub();
   }, []);
 
   const pushDebounced = useCallback(

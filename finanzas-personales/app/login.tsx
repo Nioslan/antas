@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,11 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    clearError();
+    setLocalError(null);
+  }, [clearError]);
 
   if (!loading && user) {
     return <Redirect href="/(tabs)" />;

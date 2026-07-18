@@ -12,14 +12,20 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updateProfile,
   type User,
 } from 'firebase/auth';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase';
+import { googleWebClientId } from '../lib/firebaseConfig';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthContextValue = {
   user: User | null;
@@ -73,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(configured);
   const [error, setError] = useState<string | null>(null);
 
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    webClientId:
+      googleWebClientId ||
+      '812081659477-placeholder.apps.googleusercontent.com',
+    iosClientId: googleWebClientId,
+    androidClientId: googleWebClientId,
+  });
+
   useEffect(() => {
     if (!configured) {
       setLoading(false);
@@ -87,9 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(next);
           setLoading(false);
         },
-        () => {
-          setLoading(false);
-        }
+        () => setLoading(false),
       );
       return unsub;
     } catch {
@@ -97,6 +109,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return undefined;
     }
   }, [configured]);
+
+  useEffect(() => {
+    if (!configured) return;
+    if (response?.type !== 'success') return;
+
+    const idToken =
+      response.authentication?.idToken ??
+      (response.params as { id_token?: string })?.id_token;
+
+    if (!idToken) {
+      setError('Google no devolvió un token válido.');
+      return;
+    }
+
+    (async () => {
+      try {
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(getFirebaseAuth(), credential);
+        setError(null);
+      } catch (err) {
+        setError(mapAuthError(err));
+      }
+    })();
+  }, [configured, response]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -145,17 +181,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // En el APK actual no están los módulos nativos de Google Sign-In.
-      // Email/contraseña sí funciona; Google vuelve con un rebuild.
-      throw new Error(
-        'En el teléfono usá email y contraseña por ahora. Google vuelve en el próximo APK.',
-      );
+      if (!googleWebClientId) {
+        throw new Error(
+          'Falta el Web client ID de Google en Firebase. En Authentication → Google copiá el “Web client ID”.',
+        );
+      }
+      if (!request) {
+        throw new Error('Google Sign-In todavía no está listo. Probá de nuevo.');
+      }
+      await promptAsync();
     } catch (err) {
       const msg = mapAuthError(err);
       setError(msg);
       throw new Error(msg);
     }
-  }, [configured]);
+  }, [configured, promptAsync, request]);
 
   const logout = useCallback(async () => {
     if (!configured) return;

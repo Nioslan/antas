@@ -125,7 +125,7 @@ export async function signInWithGoogleNative(): Promise<string | null> {
       }
       if (code === '10' || code === 'DEVELOPER_ERROR') {
         throw new Error(
-          'Configuración de Google incompleta. En Firebase → Project settings → Android (com.finanzas.personales) agregá el SHA-1 del APK y esperá unos minutos.'
+          'Configuración de Google incompleta. En Firebase → Project settings → Android (com.llc.finanzaspersonales) agregá el SHA-1 del APK y esperá unos minutos.'
         );
       }
     }

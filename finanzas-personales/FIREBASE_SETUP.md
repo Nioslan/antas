@@ -30,7 +30,7 @@ Sin este paso el login en la nube no puede funcionar. El plan gratuito Spark alc
 ### Android (APK) — obligatorio para Google Sign-In
 
 1. **Add app → Android**
-2. Package name: `com.finanzas.personales`
+2. Package name: `com.llc.finanzaspersonales` (debe coincidir con `google-services.json`)
 3. **SHA-1 del APK preview (EAS)** — sin esto Google falla en el teléfono:
 
    ```
@@ -40,11 +40,10 @@ Sin este paso el login en la nube no puede funcionar. El plan gratuito Spark alc
 4. Guardá y esperá 2–5 minutos (a veces hasta 1 hora) a que Google propague el cliente OAuth.
 5. **Importante:** en la pantalla “Agrega el SDK de Firebase / Instrucciones para Gradle”
    **no copies nada de Gradle**. Esta app es Expo: Firebase ya está por JS.
-6. En esa misma pantalla tocá **Descargar google-services.json** y guardalo como:
-
-   `finanzas-personales/google-services.json`
-
-   (el `app.json` ya apunta a ese archivo).
+6. Descargá **google-services.json** y guardalo como
+   `finanzas-personales/google-services.json` (ya está en el repo / `app.json`).
+7. El package del JSON y de `app.json` debe ser el mismo:
+   `com.llc.finanzaspersonales`.
 
 > Tip fingerprint: Firebase → Project settings → Your apps → Android → Add fingerprint.
 

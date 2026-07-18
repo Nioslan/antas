@@ -25,21 +25,44 @@ export function isCloudSyncAvailable(): boolean {
   return isFirebaseConfigured();
 }
 
+/** Firestore rechaza `undefined`; hay que omitir esos campos. */
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefined(item)) as T;
+  }
+  if (value && typeof value === 'object') {
+    // serverTimestamp() y similares se dejan tal cual
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) {
+      return value;
+    }
+    const out: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (nested === undefined) continue;
+      out[key] = stripUndefined(nested);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export async function pushToCloud(uid: string, state: FinanceState): Promise<void> {
   if (!isCloudSyncAvailable()) {
     throw new Error('Firebase no configurado');
   }
 
-  const payload: CloudFinanceDoc = {
+  const payload = stripUndefined({
     transactions: state.transactions,
     goals: state.goals,
     fixedExpenses: state.fixedExpenses,
     cashNow: state.cashNow,
     chatHistory: state.chatHistory,
-    lastSaturdayBonusWeek: state.lastSaturdayBonusWeek,
+    ...(state.lastSaturdayBonusWeek
+      ? { lastSaturdayBonusWeek: state.lastSaturdayBonusWeek }
+      : {}),
     updatedAt: state.updatedAt || new Date().toISOString(),
     syncedAt: serverTimestamp(),
-  };
+  } satisfies CloudFinanceDoc);
 
   await setDoc(userDocRef(uid), payload, { merge: true });
 }

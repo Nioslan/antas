@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
 import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
 import { useAuth } from '../src/context/AuthContext';
+import { LATEST_ANDROID_APK_URL } from '../src/lib/apk';
 import { spacing } from '../src/theme';
 import { useSettings } from '../src/context/SettingsContext';
 
@@ -66,7 +75,23 @@ export default function LoginScreen() {
       await signInWithGoogle();
       router.replace('/(tabs)');
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Error con Google');
+      const msg = err instanceof Error ? err.message : 'Error con Google';
+      setLocalError(msg);
+      if (
+        msg.includes('APK') ||
+        msg.includes('SHA-1') ||
+        msg.includes('nativo')
+      ) {
+        Alert.alert('Google en el teléfono', msg, [
+          { text: 'Cerrar', style: 'cancel' },
+          {
+            text: 'Bajar APK nuevo',
+            onPress: () => {
+              void Linking.openURL(LATEST_ANDROID_APK_URL);
+            },
+          },
+        ]);
+      }
     } finally {
       setBusy(false);
     }
@@ -156,6 +181,11 @@ export default function LoginScreen() {
           )}
         </Pressable>
 
+        <Text style={[styles.hint, { color: colors.textDim }]}>
+          Si Google falla en el teléfono, instalá el APK nuevo (Google nativo) y
+          en Firebase agregá el SHA-1 de la app Android.
+        </Text>
+
         <Pressable
           onPress={() => {
             setMode((m) => (m === 'login' ? 'register' : 'login'));
@@ -207,5 +237,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     fontSize: 14,
+  },
+  hint: {
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
   },
 });

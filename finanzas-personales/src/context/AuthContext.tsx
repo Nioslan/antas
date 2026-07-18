@@ -12,6 +12,7 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -20,6 +21,7 @@ import {
 } from 'firebase/auth';
 
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase';
+import { signInWithGoogleNative } from '../lib/googleNative';
 
 type AuthContextValue = {
   user: User | null;
@@ -61,6 +63,8 @@ function mapAuthError(err: unknown): string {
       return 'El navegador bloqueó la ventana de Google.';
     case 'auth/popup-closed-by-user':
       return 'Cerraste la ventana de Google antes de terminar.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Ese email ya está registrado con otro método (email/contraseña).';
     default:
       if (err instanceof Error && err.message) return err.message;
       return 'No se pudo completar el acceso.';
@@ -139,14 +143,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(getFirebaseAuth(), provider);
         return;
       }
 
-      // El APK instalado aún no incluye Google nativo; el próximo APK sí.
-      throw new Error(
-        'En el teléfono usá email y contraseña por ahora. Google llega con el APK nuevo.',
-      );
+      const idToken = await signInWithGoogleNative();
+      if (!idToken) {
+        // usuario canceló
+        return;
+      }
+      const credential = GoogleAuthProvider.credential(idToken);
+      await signInWithCredential(getFirebaseAuth(), credential);
+      setError(null);
     } catch (err) {
       const msg = mapAuthError(err);
       setError(msg);

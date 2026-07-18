@@ -53,7 +53,8 @@
           "icon": "./assets/icon.png",
           "color": "#E24B3C"
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "router": {},

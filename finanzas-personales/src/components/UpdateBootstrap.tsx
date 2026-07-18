@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 
@@ -12,13 +7,15 @@ type Phase = 'checking' | 'downloading' | 'applying' | 'ready' | 'skip';
 
 /**
  * Pantalla de arranque: busca update, muestra progreso y reinicia.
- * No importa Firebase ni módulos nativos opcionales (para no crashear).
+ * No importa Firebase ni módulos nativos opcionales.
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>('checking');
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Buscando actualización…');
   const started = useRef(false);
+
+  const updates = Updates.useUpdates();
 
   const skipUpdates =
     __DEV__ ||
@@ -34,13 +31,6 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     started.current = true;
 
     let cancelled = false;
-    const sub = Updates.addListener((event) => {
-      if (event.type === Updates.UpdateEventType.UPDATE_AVAILABLE) {
-        setPhase('downloading');
-        setStatusText('Descargando actualización…');
-      }
-      // downloadProgress may arrive via useUpdates; also poll below
-    });
 
     (async () => {
       try {
@@ -61,7 +51,6 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         setStatusText('Descargando actualización…');
         setProgress(0.15);
 
-        // Simular avance suave mientras baja (fetchUpdateAsync no siempre emite %)
         const tick = setInterval(() => {
           setProgress((p) => (p < 0.85 ? p + 0.03 : p));
         }, 400);
@@ -82,7 +71,6 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         setProgress(1);
         setPhase('ready');
       } catch {
-        // Si falla la red / update, entramos igual a la app
         if (!cancelled) {
           setStatusText('No se pudo actualizar. Continuando…');
           setProgress(1);
@@ -95,9 +83,19 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
-      sub.remove();
     };
   }, [skipUpdates]);
+
+  // Usar progreso real del download si expo-updates lo reporta
+  useEffect(() => {
+    if (
+      phase === 'downloading' &&
+      typeof updates.downloadProgress === 'number' &&
+      updates.downloadProgress > 0
+    ) {
+      setProgress(Math.max(0.15, Math.min(0.95, updates.downloadProgress)));
+    }
+  }, [phase, updates.downloadProgress]);
 
   if (skipUpdates || phase === 'ready' || phase === 'skip') {
     return <>{children}</>;

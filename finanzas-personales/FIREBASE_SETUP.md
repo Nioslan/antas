@@ -34,7 +34,7 @@ Sin este paso el login en la nube no puede funcionar. El plan gratuito Spark alc
 3. **SHA-1 del APK preview (EAS)** — sin esto Google falla en el teléfono:
 
    ```
-   40:E1:39:E5:CA:A5:0D:93:E0:8A:BC:C4:9B:12:77:B6:7E:11:C7:CB
+   25:47:DF:6A:63:96:4A:AF:CE:5E:1A:14:98:F1:28:12:F2:4B:33:C2
    ```
 
 4. Guardá y esperá 2–5 minutos (a veces hasta 1 hora) a que Google propague el cliente OAuth.

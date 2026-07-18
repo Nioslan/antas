@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Link, Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { useFinance } from '@/src/context/FinanceContext';
@@ -32,6 +32,7 @@ function syncLabel(status: string): string {
 export default function SettingsScreen() {
   const scheme = useColorScheme() ?? 'light';
   const c = Colors[scheme];
+  const router = useRouter();
   const { user, configured, logout, loading } = useAuth();
   const { syncStatus, syncError, lastSyncedAt, syncNow } = useFinance();
   const [busy, setBusy] = useState(false);
@@ -112,11 +113,11 @@ export default function SettingsScreen() {
                 Iniciá sesión para guardar movimientos, metas, fijos y efectivo en la nube y
                 recuperarlos en otro teléfono.
               </Text>
-              <Link href="/login" asChild>
-                <Pressable style={[styles.btn, { backgroundColor: c.tint }]}>
-                  <Text style={styles.btnText}>Iniciar sesión / Crear cuenta</Text>
-                </Pressable>
-              </Link>
+              <Pressable
+                style={{ ...styles.btn, backgroundColor: c.tint }}
+                onPress={() => router.push('/login')}>
+                <Text style={styles.btnText}>Iniciar sesión / Crear cuenta</Text>
+              </Pressable>
             </>
           )}
         </View>

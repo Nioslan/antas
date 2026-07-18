@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { useFinance } from '@/src/context/FinanceContext';
@@ -26,6 +26,7 @@ function money(n: number): string {
 export default function HomeScreen() {
   const scheme = useColorScheme() ?? 'light';
   const c = Colors[scheme];
+  const router = useRouter();
   const { user } = useAuth();
   const {
     ready,
@@ -83,11 +84,9 @@ export default function HomeScreen() {
       <View style={[styles.header, { backgroundColor: c.forest }]}>
         <View style={styles.headerRow}>
           <Text style={styles.brand}>Finanzas</Text>
-          <Link href="/settings" asChild>
-            <Pressable>
-              <Text style={styles.headerLink}>Ajustes</Text>
-            </Pressable>
-          </Link>
+          <Pressable onPress={() => router.push('/settings')}>
+            <Text style={styles.headerLink}>Ajustes</Text>
+          </Pressable>
         </View>
         <Text style={styles.cashLabel}>Efectivo ahora</Text>
         <Text style={styles.cashValue}>{money(state.cashNow)}</Text>

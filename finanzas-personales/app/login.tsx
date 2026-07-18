@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Link, Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { useAuth } from '@/src/context/AuthContext';
@@ -19,6 +19,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 export default function LoginScreen() {
   const scheme = useColorScheme() ?? 'light';
   const c = Colors[scheme];
+  const router = useRouter();
   const { user, loading, configured, error, clearError, signInEmail, signUpEmail, signInWithGoogle } =
     useAuth();
 

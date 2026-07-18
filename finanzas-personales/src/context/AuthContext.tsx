@@ -61,6 +61,12 @@ function mapAuthError(err: unknown): string {
       return 'Sin conexión. Probá de nuevo cuando haya internet.';
     case 'auth/operation-not-allowed':
       return 'Este método de login no está habilitado en Firebase.';
+    case 'auth/unauthorized-domain':
+      return 'Este dominio no está autorizado en Firebase. En Authentication → Settings → Authorized domains agregá el dominio de la URL (ej. ….trycloudflare.com) o usá localhost.';
+    case 'auth/popup-blocked':
+      return 'El navegador bloqueó la ventana de Google. Permití popups e intentá de nuevo.';
+    case 'auth/popup-closed-by-user':
+      return 'Cerraste la ventana de Google antes de terminar.';
     default:
       if (err instanceof Error && err.message) return err.message;
       return 'No se pudo completar el acceso.';

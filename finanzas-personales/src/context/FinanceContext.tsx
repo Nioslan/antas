@@ -15,7 +15,10 @@ import {
   pushToCloud,
 } from '../lib/cloudSync';
 import { learnFromTransaction } from '../lib/fixedExpenses';
-import { scheduleFixedReminders } from '../lib/notifications';
+import {
+  notifyDueBillsNow,
+  scheduleFixedReminders,
+} from '../lib/notifications';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
 import { emptyState, loadFinanceState, saveFinanceState } from '../lib/storage';
 import { summarizeCapital, summarizeDay } from '../lib/summary';
@@ -293,6 +296,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !settings.notificationsEnabled) return;
     void scheduleFixedReminders(state.fixedExpenses);
+    // Aviso inmediato (una vez al día) si hay fijos por pagar pronto
+    void notifyDueBillsNow(state.fixedExpenses);
   }, [ready, settings.notificationsEnabled, state.fixedExpenses]);
 
   const today = useMemo(

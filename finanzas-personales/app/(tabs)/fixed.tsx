@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
   Title,
 } from '../../src/components/ui';
 import { useFinance } from '../../src/context/FinanceContext';
+import { useSettings } from '../../src/context/SettingsContext';
 import { formatMoney, getCategoryLabel } from '../../src/lib/categories';
 import {
   daysUntilPayUnlock,
@@ -26,12 +27,19 @@ import {
   nextDueDate,
   upcomingFixed,
 } from '../../src/lib/fixedExpenses';
-import { ensureNotificationPermissions } from '../../src/lib/notifications';
+import {
+  ensureNotificationPermissions,
+  listDueSoonBills,
+  notifyDueBillsNow,
+  sendTestBillNotification,
+  vibrateForBillAlert,
+} from '../../src/lib/notifications';
 import { colors, radius, spacing } from '../../src/theme';
 
 export default function FixedExpensesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { settings } = useSettings();
   const {
     state,
     updateFixedExpense,
@@ -45,14 +53,47 @@ export default function FixedExpensesScreen() {
     [state.fixedExpenses]
   );
 
+  const dueSoon = useMemo(
+    () => listDueSoonBills(state.fixedExpenses, undefined, 5),
+    [state.fixedExpenses]
+  );
+
+  const dueToday = dueSoon.filter((d) => d.days === 0);
+
+  useEffect(() => {
+    if (dueSoon.length === 0 || !settings.notificationsEnabled) return;
+    // Vibración suave al entrar si hay algo por pagar pronto
+    if (dueToday.length > 0) vibrateForBillAlert();
+  }, [dueSoon.length, dueToday.length, settings.notificationsEnabled]);
+
   const enableAlerts = async () => {
     const ok = await ensureNotificationPermissions();
     await refreshFixedReminders();
+    if (ok) {
+      const result = await notifyDueBillsNow(state.fixedExpenses, {
+        force: true,
+      });
+      Alert.alert(
+        'Avisos activos',
+        result.count > 0
+          ? `Te aviso afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago. Ahora tenés ${result.count} por pagar pronto.`
+          : 'Te aviso afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago.'
+      );
+    } else {
+      Alert.alert(
+        'Permiso pendiente',
+        'Activá las notificaciones en Ajustes del celular para recibir avisos afuera de la app.'
+      );
+    }
+  };
+
+  const testAlert = async () => {
+    const ok = await sendTestBillNotification();
     Alert.alert(
-      ok ? 'Avisos activos' : 'Permiso pendiente',
+      ok ? 'Aviso de prueba enviado' : 'Sin permiso',
       ok
-        ? 'Te aviso 5 días antes y el mismo día de cada pago fijo.'
-        : 'Activá las notificaciones en Ajustes del celular para recibir avisos.'
+        ? 'Mirá la notificación afuera de la app. El teléfono también debería vibrar.'
+        : 'Activá las notificaciones en Ajustes del celular.'
     );
   };
 
@@ -79,17 +120,50 @@ export default function FixedExpensesScreen() {
             <Text style={styles.brand}>Fijos</Text>
             <Title>Gastos fijos</Title>
             <Subtitle>
-              Te aviso 5 días antes y el mismo día. Tocá Pagar para registrarlo;
-              queda en Pagado 5 días y después vuelve a activarse.
+              Te aviso afuera de la app (y vibra el teléfono) 5, 3 y 1 día antes,
+              y el día del pago. Tocá Pagar para registrarlo.
             </Subtitle>
           </View>
         </View>
 
+        {dueSoon.length > 0 ? (
+          <View style={styles.alertBanner}>
+            <Ionicons name="notifications" size={22} color={colors.expense} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>
+                {dueToday.length > 0
+                  ? `Hoy tenés que pagar ${dueToday.length}`
+                  : `${dueSoon.length} pago${dueSoon.length === 1 ? '' : 's'} cerca`}
+              </Text>
+              <Text style={styles.alertBody}>
+                {dueSoon
+                  .slice(0, 3)
+                  .map(({ bill, days }) => {
+                    const when =
+                      days === 0
+                        ? 'hoy'
+                        : days === 1
+                          ? 'mañana'
+                          : `en ${days} días`;
+                    return `${bill.name} (${when})`;
+                  })
+                  .join(' · ')}
+                {dueSoon.length > 3 ? ` · +${dueSoon.length - 3}` : ''}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <PrimaryButton label="+ Agregar fijo" onPress={() => router.push('/add-fixed')} />
         <PrimaryButton
-          label="Activar avisos (5 días y el día)"
+          label="Activar avisos + vibración"
           tone="muted"
           onPress={enableAlerts}
+        />
+        <PrimaryButton
+          label="Probar aviso ahora"
+          tone="muted"
+          onPress={testAlert}
         />
 
         {upcoming.length > 0 && (
@@ -121,9 +195,17 @@ export default function FixedExpensesScreen() {
             const learned = f.learnedDays.length >= 2;
             const locked = isPayButtonLocked(f.lastPaidDate, 5);
             const unlockIn = daysUntilPayUnlock(f.lastPaidDate, 5);
+            const billDue = dueSoon.find((d) => d.bill.id === f.id);
 
             return (
-              <Card key={f.id} style={styles.card}>
+              <Card
+                key={f.id}
+                style={
+                  billDue?.days === 0
+                    ? { ...styles.card, ...styles.cardDueToday }
+                    : styles.card
+                }
+              >
                 <View style={styles.cardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{f.name}</Text>
@@ -135,6 +217,15 @@ export default function FixedExpensesScreen() {
                   <Text style={styles.amount}>{formatMoney(f.amount)}</Text>
                 </View>
                 <Text style={styles.due}>Próximo pago: {due}</Text>
+                {billDue ? (
+                  <Text style={styles.dueUrgent}>
+                    {billDue.days === 0
+                      ? '¡Vence hoy!'
+                      : billDue.days === 1
+                        ? 'Vence mañana'
+                        : `Vence en ${billDue.days} días`}
+                  </Text>
+                ) : null}
                 {f.lastPaidDate ? (
                   <Text style={styles.due}>Último pago: {f.lastPaidDate}</Text>
                 ) : null}
@@ -163,7 +254,8 @@ export default function FixedExpensesScreen() {
                 </Pressable>
                 {locked ? (
                   <Text style={styles.unlockHint}>
-                    El botón se reactivará en {unlockIn} día{unlockIn === 1 ? '' : 's'}.
+                    El botón se reactivará en {unlockIn} día
+                    {unlockIn === 1 ? '' : 's'}.
                   </Text>
                 ) : null}
 
@@ -218,6 +310,27 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.expenseSoft,
+    borderWidth: 1,
+    borderColor: colors.expense,
+  },
+  alertTitle: {
+    color: colors.expense,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  alertBody: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
   upcoming: {
     gap: 6,
   },
@@ -238,6 +351,10 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: 8,
+  },
+  cardDueToday: {
+    borderWidth: 1,
+    borderColor: colors.expense,
   },
   cardTop: {
     flexDirection: 'row',
@@ -261,6 +378,11 @@ const styles = StyleSheet.create({
   },
   due: {
     color: colors.textMuted,
+    fontSize: 13,
+  },
+  dueUrgent: {
+    color: colors.expense,
+    fontWeight: '700',
     fontSize: 13,
   },
   payBtn: {

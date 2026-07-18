@@ -19,7 +19,8 @@ const es: Dict = {
   sectionPreferences: 'Preferencias',
   currency: 'Moneda',
   notifications: 'Notificaciones',
-  notificationsHint: 'Avisos 5 días antes y el mismo día del pago.',
+  notificationsHint:
+    'Avisos afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago.',
   haptics: 'Vibración al tocar',
   saturdayBonus: 'Bono del sábado',
   saturdayBonusHint: 'Sumar 20% del libre semanal a Ahora.',
@@ -71,7 +72,8 @@ const en: Dict = {
   sectionPreferences: 'Preferences',
   currency: 'Currency',
   notifications: 'Notifications',
-  notificationsHint: 'Alerts 5 days before and on the due day.',
+  notificationsHint:
+    'Outside alerts with vibration: 5, 3 and 1 day before, and on the due day.',
   haptics: 'Haptics on tap',
   saturdayBonus: 'Saturday bonus',
   saturdayBonusHint: 'Add 20% of weekly free cash to Now.',

@@ -29,7 +29,10 @@ import { useAuth } from '../src/context/AuthContext';
 import { useFinance } from '../src/context/FinanceContext';
 import { useSettings } from '../src/context/SettingsContext';
 import { formatMoney } from '../src/lib/categories';
-import { scheduleFixedReminders } from '../src/lib/notifications';
+import {
+  notifyDueBillsNow,
+  scheduleFixedReminders,
+} from '../src/lib/notifications';
 import { getOpenAiKey, setOpenAiKey } from '../src/lib/storage';
 import { sanitizeApiKey, testOpenAiKey } from '../src/lib/ai';
 import { checkAndApplyUpdate, getUpdateMeta } from '../src/lib/updates';
@@ -150,7 +153,15 @@ export default function SettingsScreen() {
     setNotificationsEnabled(value);
     if (value) {
       await scheduleFixedReminders(state.fixedExpenses);
-      Alert.alert('Notificaciones', 'Recordatorios activados.');
+      const digest = await notifyDueBillsNow(state.fixedExpenses, {
+        force: true,
+      });
+      Alert.alert(
+        'Notificaciones',
+        digest.count > 0
+          ? `Avisos afuera de la app activados (con vibración). Tenés ${digest.count} pago(s) cerca.`
+          : 'Avisos afuera de la app activados (con vibración): 5, 3 y 1 día antes, y el día del pago.'
+      );
     } else {
       Alert.alert('Notificaciones', 'No se programarán nuevos recordatorios.');
     }

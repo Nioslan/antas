@@ -1,14 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Keyboard, Platform, View } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import { useFinance } from '../../src/context/FinanceContext';
 import { useSettings } from '../../src/context/SettingsContext';
+import { countUpcomingBills } from '../../src/lib/notifications';
 
 export default function TabsLayout() {
   const { colors } = useSettings();
   const { user, loading } = useAuth();
+  const { state, ready } = useFinance();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  const dueBadge = useMemo(() => {
+    if (!ready) return undefined;
+    const n = countUpcomingBills(state.fixedExpenses);
+    return n > 0 ? n : undefined;
+  }, [ready, state.fixedExpenses]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -95,6 +104,13 @@ export default function TabsLayout() {
         name="fixed"
         options={{
           title: 'Fijos',
+          tabBarBadge: dueBadge,
+          tabBarBadgeStyle: {
+            backgroundColor: colors.expense,
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '700',
+          },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),

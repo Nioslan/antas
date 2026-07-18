@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import type { FinanceState } from '../types/finance';
 import type { FixedExpense } from '../types/fixed';
 
@@ -65,9 +66,21 @@ export async function saveFinanceState(state: FinanceState): Promise<void> {
   await AsyncStorage.setItem(DATA_KEY, JSON.stringify(state));
 }
 
+async function useSecureStore(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    return await SecureStore.isAvailableAsync();
+  } catch {
+    return false;
+  }
+}
+
 export async function getOpenAiKey(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync(API_KEY);
+    if (await useSecureStore()) {
+      return await SecureStore.getItemAsync(API_KEY);
+    }
+    return await AsyncStorage.getItem(API_KEY);
   } catch {
     return null;
   }
@@ -79,9 +92,22 @@ export async function setOpenAiKey(key: string): Promise<void> {
     .replace(/^["']|["']$/g, '')
     .replace(/\s+/g, '')
     .replace(/^Bearer/i, '');
+
+  const secure = await useSecureStore();
+
   if (!cleaned) {
-    await SecureStore.deleteItemAsync(API_KEY);
+    if (secure) {
+      await SecureStore.deleteItemAsync(API_KEY);
+    } else {
+      await AsyncStorage.removeItem(API_KEY);
+    }
     return;
   }
-  await SecureStore.setItemAsync(API_KEY, cleaned);
+
+  if (secure) {
+    await SecureStore.setItemAsync(API_KEY, cleaned);
+  } else {
+    // Web / entornos sin SecureStore
+    await AsyncStorage.setItem(API_KEY, cleaned);
+  }
 }

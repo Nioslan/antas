@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
 import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
 import { useAuth } from '../src/context/AuthContext';
-import { setGuestAccess } from '../src/lib/guestAccess';
 import { spacing } from '../src/theme';
 import { useSettings } from '../src/context/SettingsContext';
 
@@ -35,11 +34,6 @@ export default function LoginScreen() {
     return <Redirect href="/(tabs)" />;
   }
 
-  const afterAuthSuccess = async () => {
-    await setGuestAccess(false);
-    router.replace('/(tabs)');
-  };
-
   const submit = async () => {
     clearError();
     setLocalError(null);
@@ -51,7 +45,7 @@ export default function LoginScreen() {
     try {
       if (mode === 'login') await signInEmail(email, password);
       else await signUpEmail(email, password, name);
-      await afterAuthSuccess();
+      router.replace('/(tabs)');
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Error de acceso');
     } finally {
@@ -65,17 +59,12 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await signInWithGoogle();
-      await afterAuthSuccess();
+      router.replace('/(tabs)');
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Error con Google');
     } finally {
       setBusy(false);
     }
-  };
-
-  const continueAsGuest = async () => {
-    await setGuestAccess(true);
-    router.replace('/(tabs)');
   };
 
   const message = localError || error;
@@ -172,12 +161,6 @@ export default function LoginScreen() {
             {mode === 'login'
               ? '¿No tenés cuenta? Crear una'
               : '¿Ya tenés cuenta? Iniciar sesión'}
-          </Text>
-        </Pressable>
-
-        <Pressable onPress={continueAsGuest}>
-          <Text style={[styles.switchText, { color: colors.textMuted }]}>
-            Seguir sin cuenta (solo este teléfono)
           </Text>
         </Pressable>
       </KeyboardForm>

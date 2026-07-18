@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
-import { getGuestAccess } from '../src/lib/guestAccess';
 import { useSettings } from '../src/context/SettingsContext';
 
 /**
- * Primera pantalla al abrir la app:
- * - sin sesión y sin modo invitado → login
- * - con sesión o "seguir sin cuenta" → tabs
+ * Primera pantalla al abrir la app: sin sesión → login obligatorio.
  */
 export default function IndexGate() {
   const { user, loading } = useAuth();
   const { colors } = useSettings();
-  const [guest, setGuest] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    getGuestAccess().then(setGuest);
-  }, []);
-
-  if (loading || guest === null) {
+  if (loading) {
     return (
       <View
         style={{
@@ -33,7 +24,7 @@ export default function IndexGate() {
     );
   }
 
-  if (user || guest) {
+  if (user) {
     return <Redirect href="/(tabs)" />;
   }
 

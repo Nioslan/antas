@@ -3,18 +3,12 @@ import { ActivityIndicator, Keyboard, Platform, View } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { getGuestAccess } from '../../src/lib/guestAccess';
 import { useSettings } from '../../src/context/SettingsContext';
 
 export default function TabsLayout() {
   const { colors } = useSettings();
   const { user, loading } = useAuth();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [guest, setGuest] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    getGuestAccess().then(setGuest);
-  }, [user]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -31,7 +25,7 @@ export default function TabsLayout() {
     };
   }, []);
 
-  if (loading || guest === null) {
+  if (loading) {
     return (
       <View
         style={{
@@ -45,7 +39,7 @@ export default function TabsLayout() {
     );
   }
 
-  if (!user && !guest) {
+  if (!user) {
     return <Redirect href="/login" />;
   }
 

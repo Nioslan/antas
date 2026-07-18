@@ -30,17 +30,17 @@ export default function CoachScreen() {
   const insets = useSafeAreaInsets();
   const { state, sendChat, chatting, clearChat } = useFinance();
   const [text, setText] = useState('');
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
     const show = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardOpen(true)
+      (e) => setKeyboardHeight(e.endCoordinates?.height ?? 0)
     );
     const hide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardOpen(false)
+      () => setKeyboardHeight(0)
     );
     return () => {
       show.remove();
@@ -51,7 +51,7 @@ export default function CoachScreen() {
   useEffect(() => {
     if (state.chatHistory.length === 0) return;
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
-  }, [state.chatHistory.length, chatting, keyboardOpen]);
+  }, [state.chatHistory.length, chatting, keyboardHeight]);
 
   const onSend = async (message?: string) => {
     const payload = (message ?? text).trim();
@@ -66,7 +66,7 @@ export default function CoachScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={8}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 8 : 0}
       >
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
@@ -148,7 +148,15 @@ export default function CoachScreen() {
         <View
           style={[
             styles.composer,
-            { paddingBottom: Math.max(insets.bottom, 12) },
+            {
+              // Android resize + small lift; iOS handled by KeyboardAvoidingView
+              paddingBottom:
+                Platform.OS === 'android' && keyboardHeight > 0
+                  ? 12
+                  : Math.max(insets.bottom, 12),
+              marginBottom:
+                Platform.OS === 'android' && keyboardHeight > 0 ? 0 : 0,
+            },
           ]}
         >
           <TextInput

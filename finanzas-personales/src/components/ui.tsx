@@ -102,7 +102,7 @@ export function Field({
   ...props
 }: TextInputProps & { label: string }) {
   const { colors } = useTheme();
-  const ensureVisible = useKeyboardFormFocus();
+  const onKeyboardFocus = useKeyboardFormFocus();
   return (
     <View style={styles.field}>
       <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
@@ -118,7 +118,7 @@ export function Field({
         ]}
         {...props}
         onFocus={(e) => {
-          ensureVisible?.();
+          onKeyboardFocus?.(e);
           onFocus?.(e);
         }}
       />

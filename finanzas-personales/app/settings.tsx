@@ -101,19 +101,26 @@ export default function SettingsScreen() {
     if (trimmed && !trimmed.startsWith('sk-')) {
       Alert.alert(
         'Revisá la clave',
-        'Las API keys de OpenAI suelen empezar con sk-.'
+        'Las API keys de OpenAI suelen empezar con sk- o sk-proj-.'
       );
       return;
     }
-    await setOpenAiKey(trimmed);
-    setApiKey(trimmed);
-    setHasKey(Boolean(trimmed));
-    Alert.alert(
-      'Listo',
-      trimmed
-        ? 'Clave guardada. Tocá “Probar conexión” para verificarla.'
-        : 'Clave eliminada. Se usará el coach local.'
-    );
+    try {
+      await setOpenAiKey(trimmed);
+      setApiKey(trimmed);
+      setHasKey(Boolean(trimmed));
+      Alert.alert(
+        'Listo',
+        trimmed
+          ? 'Clave guardada. Tocá “Probar conexión” para verificarla.'
+          : 'Clave eliminada. Se usará el coach local.'
+      );
+    } catch (err) {
+      Alert.alert(
+        'No se pudo guardar',
+        err instanceof Error ? err.message : 'Error al guardar la clave.'
+      );
+    }
   };
 
   const testKey = async () => {

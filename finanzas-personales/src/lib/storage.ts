@@ -5,7 +5,9 @@ import type { FinanceState } from '../types/finance';
 import type { FixedExpense } from '../types/fixed';
 
 const DATA_KEY = 'finanzas:taller:v1';
-const API_KEY = 'finanzas:openai_key';
+/** SecureStore en Android solo permite [A-Za-z0-9._-]. El nombre viejo con ":" fallaba. */
+const API_KEY = 'finanzas_openai_key';
+const API_KEY_LEGACY = 'finanzas:openai_key';
 
 export const emptyState: FinanceState = {
   transactions: [],
@@ -78,11 +80,34 @@ async function useSecureStore(): Promise<boolean> {
 export async function getOpenAiKey(): Promise<string | null> {
   try {
     if (await useSecureStore()) {
-      return await SecureStore.getItemAsync(API_KEY);
+      const modern = await SecureStore.getItemAsync(API_KEY);
+      if (modern) return modern;
+      // Migrar clave vieja si existía (puede fallar por el ":" en Android)
+      try {
+        const legacy = await SecureStore.getItemAsync(API_KEY_LEGACY);
+        if (legacy) {
+          await SecureStore.setItemAsync(API_KEY, legacy);
+          try {
+            await SecureStore.deleteItemAsync(API_KEY_LEGACY);
+          } catch {
+            // ignore
+          }
+          return legacy;
+        }
+      } catch {
+        // ignore legacy read errors
+      }
     }
-    return await AsyncStorage.getItem(API_KEY);
+    return (
+      (await AsyncStorage.getItem(API_KEY)) ??
+      (await AsyncStorage.getItem(API_KEY_LEGACY))
+    );
   } catch {
-    return null;
+    try {
+      return await AsyncStorage.getItem(API_KEY);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -97,17 +122,26 @@ export async function setOpenAiKey(key: string): Promise<void> {
 
   if (!cleaned) {
     if (secure) {
-      await SecureStore.deleteItemAsync(API_KEY);
-    } else {
-      await AsyncStorage.removeItem(API_KEY);
+      try {
+        await SecureStore.deleteItemAsync(API_KEY);
+      } catch {
+        // ignore
+      }
     }
+    await AsyncStorage.removeItem(API_KEY);
+    await AsyncStorage.removeItem(API_KEY_LEGACY);
     return;
   }
 
+  // Siempre guardar en AsyncStorage como respaldo (web + si SecureStore falla)
+  await AsyncStorage.setItem(API_KEY, cleaned);
+
   if (secure) {
-    await SecureStore.setItemAsync(API_KEY, cleaned);
-  } else {
-    // Web / entornos sin SecureStore
-    await AsyncStorage.setItem(API_KEY, cleaned);
+    try {
+      await SecureStore.setItemAsync(API_KEY, cleaned);
+    } catch (err) {
+      // No tumbar el guardado: AsyncStorage ya tiene la clave
+      console.warn('SecureStore setOpenAiKey failed, using AsyncStorage', err);
+    }
   }
 }

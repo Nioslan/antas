@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import NetInfo from '@react-native-community/netinfo';
 import { askFinanceCoach } from '../lib/ai';
 import {
   isCloudSyncAvailable,
@@ -16,6 +15,7 @@ import {
   pushToCloud,
 } from '../lib/cloudSync';
 import { learnFromTransaction } from '../lib/fixedExpenses';
+import { subscribeNetwork } from '../lib/netInfoSafe';
 import { scheduleFixedReminders } from '../lib/notifications';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
 import { emptyState, loadFinanceState, saveFinanceState } from '../lib/storage';
@@ -130,14 +130,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [state]);
 
   useEffect(() => {
-    const unsub = NetInfo.addEventListener((info) => {
-      const isOnline = Boolean(
-        info.isConnected && info.isInternetReachable !== false
-      );
+    return subscribeNetwork((isOnline) => {
       setOnline(isOnline);
       if (!isOnline) setSyncStatus('offline');
     });
-    return () => unsub();
   }, []);
 
   const pushDebounced = useCallback(

@@ -9,22 +9,28 @@ export type UpdateCheckResult =
   | { status: 'updated'; message: string }
   | { status: 'error'; message: string };
 
+export type UpdateProgress = {
+  phase: 'checking' | 'downloading' | 'applying';
+  progress: number; // 0..1
+  message: string;
+};
+
 /**
  * Checks EAS Update for a new JS bundle, downloads it, and reloads the app.
  * Only works in release builds created with EAS (not Expo Go / Metro).
  */
 export async function checkAndApplyUpdate(
-  language: 'es' | 'en' = 'es'
+  language: 'es' | 'en' = 'es',
+  onProgress?: (p: UpdateProgress) => void
 ): Promise<UpdateCheckResult> {
   const es = language === 'es';
 
-  // Expo Go / local Metro: updates API is disabled
   if (__DEV__ || Constants.appOwnership === 'expo') {
     return {
       status: 'dev',
       message: es
-        ? 'Las actualizaciones desde la app funcionan en la versión descargada (APK/AAB), no en Expo Go ni en desarrollo. Cuando tengamos un build instalado, este botón bajará las mejoras solas.'
-        : 'In-app updates work on the downloaded release build (APK/AAB), not in Expo Go or development. Once you install a build, this button will download improvements.',
+        ? 'Las actualizaciones desde la app funcionan en la versión descargada (APK/AAB), no en Expo Go ni en desarrollo.'
+        : 'In-app updates work on the downloaded release build (APK/AAB), not in Expo Go or development.',
     };
   }
 
@@ -38,8 +44,19 @@ export async function checkAndApplyUpdate(
   }
 
   try {
+    onProgress?.({
+      phase: 'checking',
+      progress: 0.08,
+      message: es ? 'Buscando actualización…' : 'Checking for update…',
+    });
+
     const result = await Updates.checkForUpdateAsync();
     if (!result.isAvailable) {
+      onProgress?.({
+        phase: 'checking',
+        progress: 1,
+        message: es ? 'Ya tenés la última versión.' : 'Already up to date.',
+      });
       return {
         status: 'upToDate',
         message: es
@@ -49,8 +66,32 @@ export async function checkAndApplyUpdate(
       };
     }
 
+    onProgress?.({
+      phase: 'downloading',
+      progress: 0.2,
+      message: es ? 'Descargando actualización…' : 'Downloading update…',
+    });
+
+    let fake = 0.2;
+    const tick = setInterval(() => {
+      fake = Math.min(0.85, fake + 0.04);
+      onProgress?.({
+        phase: 'downloading',
+        progress: fake,
+        message: es ? 'Descargando actualización…' : 'Downloading update…',
+      });
+    }, 350);
+
     await Updates.fetchUpdateAsync();
-    // Reload applies the new bundle
+    clearInterval(tick);
+
+    onProgress?.({
+      phase: 'applying',
+      progress: 1,
+      message: es ? 'Activando actualización…' : 'Applying update…',
+    });
+
+    await new Promise((r) => setTimeout(r, 400));
     await Updates.reloadAsync();
     return {
       status: 'updated',

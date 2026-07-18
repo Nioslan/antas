@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { UpdateBootstrap } from '../src/components/UpdateBootstrap';
 import { AuthProvider } from '../src/context/AuthContext';
 import { FinanceProvider } from '../src/context/FinanceContext';
 import { SettingsProvider, useSettings } from '../src/context/SettingsContext';
@@ -118,13 +119,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <RootErrorBoundary>
-        <SettingsProvider>
-          <AuthProvider>
-            <FinanceProvider>
-              <RootNavigator />
-            </FinanceProvider>
-          </AuthProvider>
-        </SettingsProvider>
+        <UpdateBootstrap>
+          <SettingsProvider>
+            <AuthProvider>
+              <FinanceProvider>
+                <RootNavigator />
+              </FinanceProvider>
+            </AuthProvider>
+          </SettingsProvider>
+        </UpdateBootstrap>
       </RootErrorBoundary>
     </SafeAreaProvider>
   );

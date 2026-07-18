@@ -15,7 +15,6 @@ import {
   pushToCloud,
 } from '../lib/cloudSync';
 import { learnFromTransaction } from '../lib/fixedExpenses';
-import { subscribeNetwork } from '../lib/netInfoSafe';
 import { scheduleFixedReminders } from '../lib/notifications';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
 import { emptyState, loadFinanceState, saveFinanceState } from '../lib/storage';
@@ -129,11 +128,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
+  // Online optimista: evita NetInfo nativo (rompe APKs viejos vía OTA).
   useEffect(() => {
-    return subscribeNetwork((isOnline) => {
-      setOnline(isOnline);
-      if (!isOnline) setSyncStatus('offline');
-    });
+    setOnline(true);
   }, []);
 
   const pushDebounced = useCallback(

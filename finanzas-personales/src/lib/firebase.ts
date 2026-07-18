@@ -1,12 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import {
-  getAuth,
-  initializeAuth,
-  type Auth,
-  type Persistence,
-} from 'firebase/auth';
+import { getAuth, initializeAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig';
@@ -27,26 +21,6 @@ function ensureApp(): FirebaseApp {
   return app;
 }
 
-/**
- * Metro resuelve el build react-native de firebase/auth, que exporta
- * getReactNativePersistence. En tipados web/node no aparece.
- */
-function getNativePersistence(): Persistence | null {
-  if (Platform.OS === 'web') return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const authMod = require('firebase/auth') as {
-      getReactNativePersistence?: (storage: typeof AsyncStorage) => Persistence;
-    };
-    if (typeof authMod.getReactNativePersistence === 'function') {
-      return authMod.getReactNativePersistence(AsyncStorage);
-    }
-  } catch {
-    // fallback a getAuth sin persistence explícita
-  }
-  return null;
-}
-
 export function getFirebaseAuth(): Auth {
   if (auth) return auth;
   const firebaseApp = ensureApp();
@@ -56,13 +30,16 @@ export function getFirebaseAuth(): Auth {
     return auth;
   }
 
-  const persistence = getNativePersistence();
+  // Evitar getReactNativePersistence (puede tumbar builds vía OTA).
+  // getAuth/initializeAuth sin opciones extra es más estable.
   try {
-    auth = persistence
-      ? initializeAuth(firebaseApp, { persistence })
-      : getAuth(firebaseApp);
-  } catch {
     auth = getAuth(firebaseApp);
+  } catch {
+    try {
+      auth = initializeAuth(firebaseApp);
+    } catch {
+      auth = getAuth(firebaseApp);
+    }
   }
   return auth;
 }

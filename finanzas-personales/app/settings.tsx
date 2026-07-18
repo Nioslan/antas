@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Alert,
   Linking,
+  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -75,6 +76,10 @@ export default function SettingsScreen() {
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{
+    progress: number;
+    message: string;
+  } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
 
@@ -153,12 +158,16 @@ export default function SettingsScreen() {
 
   const checkUpdates = async () => {
     setCheckingUpdate(true);
+    setUpdateProgress({ progress: 0.05, message: 'Buscando actualización…' });
     try {
-      const result = await checkAndApplyUpdate(language);
+      const result = await checkAndApplyUpdate(language, (p) => {
+        setUpdateProgress({ progress: p.progress, message: p.message });
+      });
       if (result.status === 'updated') return; // app reloads
       Alert.alert(tr('checkUpdates'), result.message);
     } finally {
       setCheckingUpdate(false);
+      setUpdateProgress(null);
     }
   };
 
@@ -205,8 +214,35 @@ export default function SettingsScreen() {
     );
   };
 
+  const updatePct = Math.round((updateProgress?.progress ?? 0) * 100);
+
   return (
     <Screen style={{ paddingTop: insets.top + 12 }}>
+      <Modal visible={Boolean(updateProgress)} transparent animationType="fade">
+        <View style={styles.updateOverlay}>
+          <View style={[styles.updateCard, { backgroundColor: colors.bgCard }]}>
+            <Text style={[styles.updateTitle, { color: colors.text }]}>
+              Actualizando
+            </Text>
+            <Text style={{ color: colors.textMuted, marginBottom: 16, textAlign: 'center' }}>
+              {updateProgress?.message ?? 'Preparando…'}
+            </Text>
+            <View style={[styles.updateTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.updateFill,
+                  { width: `${updatePct}%`, backgroundColor: colors.accent },
+                ]}
+              />
+            </View>
+            <Text style={[styles.updatePct, { color: colors.text }]}>{updatePct}%</Text>
+            <Text style={{ color: colors.textDim, fontSize: 12, marginTop: 12, textAlign: 'center' }}>
+              No cierres la app. Tus datos se mantienen.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardForm contentContainerStyle={styles.content} bottomOffset={40}>
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
@@ -587,6 +623,40 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     marginTop: 4,
+  },
+  updateOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  updateCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  updateTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  updateTrack: {
+    width: '100%',
+    height: 12,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  updateFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  updatePct: {
+    marginTop: 10,
+    fontWeight: '700',
+    fontSize: 16,
   },
   stat: {
     fontSize: 14,

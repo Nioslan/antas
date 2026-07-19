@@ -20,10 +20,12 @@ import { colors, radius, spacing } from '../../src/theme';
 const SUGGESTIONS = [
   'Dame un diagnóstico de mi semana',
   '¿Dónde se me va más la plata?',
+  '¿Cuánto debería apartar esta semana?',
   'Armame un plan de 3 pasos',
   '¿Cómo llego más rápido a mi meta?',
-  '¿Cuánto debería apartar esta semana?',
   'Revisá mi bono del sábado y Ahorro',
+  '¿Cómo voy con mis fijos?',
+  '¿Qué es el libre y Ahorro?',
 ];
 
 export default function CoachScreen() {
@@ -100,9 +102,10 @@ export default function CoachScreen() {
                 <Ionicons name="sparkles" size={28} color={colors.accent} />
                 <Text style={styles.welcomeTitle}>¿En qué te ayudo hoy?</Text>
                 <Text style={styles.welcomeBody}>
-                  Analiza tu semana, categorías, metas, efectivo en Ahorro y el
-                  bono del sábado. Sin API key usa el coach avanzado local; con
-                  OpenAI en Ajustes, GPT con tu historial.
+                  Coach local entrenado para preguntas básicas: diagnóstico,
+                  gastos, cuánto apartar, metas, Ahorro, bono del sábado y
+                  fijos. No hace falta OpenAI. Si más adelante ponés una API key
+                  en Ajustes, también puede usar GPT.
                 </Text>
                 <View style={styles.suggestions}>
                   {SUGGESTIONS.map((s) => (

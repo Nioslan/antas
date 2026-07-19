@@ -605,7 +605,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           ...state,
           chatHistory: [...state.chatHistory, userMsg],
         };
-        const { reply } = await askFinanceCoach(snapshot, trimmed);
+        const { reply } = await askFinanceCoach(snapshot, trimmed, {
+          saturdayBonusPercent: settings.saturdayBonusPercent,
+          saturdayBonusEnabled: settings.saturdayBonusEnabled,
+        });
         const assistantMsg: ChatMessage = {
           id: uid('msg'),
           role: 'assistant',
@@ -620,7 +623,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setChatting(false);
       }
     },
-    [chatting, state]
+    [
+      chatting,
+      settings.saturdayBonusEnabled,
+      settings.saturdayBonusPercent,
+      state,
+    ]
   );
 
   const clearChat = useCallback(() => {

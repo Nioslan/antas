@@ -1,3 +1,3 @@
-/** APK preview más reciente. */
+/** APK preview más reciente (ícono billetera + chart). */
 export const LATEST_ANDROID_APK_URL =
-  'https://expo.dev/artifacts/eas/yCjeFu8UXo04SR51shpwbsg0-Wb-xD4mF_odHAaCb6Y.apk';
+  'https://expo.dev/artifacts/eas/FAkdIII7FYEBoBOHEnPTE4muiWk4pg0F2K0vW9r5N4w.apk';

@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Keyboard, Platform, View } from 'react-native';
-import { Redirect, Tabs } from 'expo-router';
+import { Keyboard, Platform } from 'react-native';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/context/AuthContext';
 import { useFinance } from '../../src/context/FinanceContext';
 import { useSettings } from '../../src/context/SettingsContext';
 import { countUpcomingBills } from '../../src/lib/notifications';
 
 export default function TabsLayout() {
   const { colors } = useSettings();
-  const { user, loading } = useAuth();
   const { state, ready } = useFinance();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
@@ -33,24 +31,6 @@ export default function TabsLayout() {
       hide.remove();
     };
   }, []);
-
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.bg,
-        }}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
 
   return (
     <Tabs

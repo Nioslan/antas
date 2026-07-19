@@ -323,7 +323,7 @@ export default function SettingsScreen() {
                   setAccountBusy(true);
                   try {
                     await logout();
-                    router.replace('/login');
+                    router.replace('/(tabs)');
                   } finally {
                     setAccountBusy(false);
                   }
@@ -336,11 +336,11 @@ export default function SettingsScreen() {
           ) : (
             <>
               <Text style={{ color: colors.text, lineHeight: 21, marginBottom: 10 }}>
-                Iniciá sesión para guardar movimientos, metas, fijos y efectivo en la
-                nube y recuperarlos en otro teléfono.
+                Tus datos se guardan en este teléfono. La cuenta es opcional: solo
+                si querés un respaldo en la nube.
               </Text>
               <PrimaryButton
-                label="Iniciar sesión / Crear cuenta"
+                label="Cuenta opcional (email)"
                 onPress={() => router.push('/login')}
               />
             </>

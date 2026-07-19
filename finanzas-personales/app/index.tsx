@@ -1,16 +1,14 @@
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
-import { useAuth } from '../src/context/AuthContext';
+import { useFinance } from '../src/context/FinanceContext';
 import { useSettings } from '../src/context/SettingsContext';
 
-/**
- * Primera pantalla al abrir la app: sin sesión → login obligatorio.
- */
+/** Abre directo la app: los datos se guardan en el teléfono. */
 export default function IndexGate() {
-  const { user, loading } = useAuth();
-  const { colors } = useSettings();
+  const { ready } = useFinance();
+  const { colors, ready: settingsReady } = useSettings();
 
-  if (loading) {
+  if (!settingsReady || !ready) {
     return (
       <View
         style={{
@@ -24,9 +22,5 @@ export default function IndexGate() {
     );
   }
 
-  if (user) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  return <Redirect href="/login" />;
+  return <Redirect href="/(tabs)" />;
 }

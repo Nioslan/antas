@@ -7,21 +7,16 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Platform } from 'react-native';
 import {
-  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithCredential,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   updateProfile,
   type User,
 } from 'firebase/auth';
 
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase';
-import { signInWithGoogleNative } from '../lib/googleNative';
 
 type AuthContextValue = {
   user: User | null;
@@ -31,7 +26,6 @@ type AuthContextValue = {
   clearError: () => void;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string, displayName?: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -57,14 +51,6 @@ function mapAuthError(err: unknown): string {
       return 'Sin conexión. Probá de nuevo cuando haya internet.';
     case 'auth/operation-not-allowed':
       return 'Este método de login no está habilitado en Firebase.';
-    case 'auth/unauthorized-domain':
-      return 'Este dominio no está autorizado en Firebase.';
-    case 'auth/popup-blocked':
-      return 'El navegador bloqueó la ventana de Google.';
-    case 'auth/popup-closed-by-user':
-      return 'Cerraste la ventana de Google antes de terminar.';
-    case 'auth/account-exists-with-different-credential':
-      return 'Ese email ya está registrado con otro método (email/contraseña).';
     default:
       if (err instanceof Error && err.message) return err.message;
       return 'No se pudo completar el acceso.';
@@ -91,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(next);
           setLoading(false);
         },
-        () => setLoading(false),
+        () => setLoading(false)
       );
       return unsub;
     } catch {
@@ -102,17 +88,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const signInEmail = useCallback(async (email: string, password: string) => {
-    if (!configured) throw new Error('Firebase no configurado');
-    try {
-      await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
-      setError(null);
-    } catch (err) {
-      const msg = mapAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  }, [configured]);
+  const signInEmail = useCallback(
+    async (email: string, password: string) => {
+      if (!configured) throw new Error('Firebase no configurado');
+      try {
+        await signInWithEmailAndPassword(
+          getFirebaseAuth(),
+          email.trim(),
+          password
+        );
+        setError(null);
+      } catch (err) {
+        const msg = mapAuthError(err);
+        setError(msg);
+        throw new Error(msg);
+      }
+    },
+    [configured]
+  );
 
   const signUpEmail = useCallback(
     async (email: string, password: string, displayName?: string) => {
@@ -121,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cred = await createUserWithEmailAndPassword(
           getFirebaseAuth(),
           email.trim(),
-          password,
+          password
         );
         if (displayName?.trim()) {
           await updateProfile(cred.user, { displayName: displayName.trim() });
@@ -133,35 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(msg);
       }
     },
-    [configured],
+    [configured]
   );
-
-  const signInWithGoogle = useCallback(async () => {
-    if (!configured) throw new Error('Firebase no configurado');
-    setError(null);
-
-    try {
-      if (Platform.OS === 'web') {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithPopup(getFirebaseAuth(), provider);
-        return;
-      }
-
-      const idToken = await signInWithGoogleNative();
-      if (!idToken) {
-        // usuario canceló
-        return;
-      }
-      const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(getFirebaseAuth(), credential);
-      setError(null);
-    } catch (err) {
-      const msg = mapAuthError(err);
-      setError(msg);
-      throw new Error(msg);
-    }
-  }, [configured]);
 
   const logout = useCallback(async () => {
     if (!configured) return;
@@ -178,7 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearError,
       signInEmail,
       signUpEmail,
-      signInWithGoogle,
       logout,
     }),
     [
@@ -189,9 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearError,
       signInEmail,
       signUpEmail,
-      signInWithGoogle,
       logout,
-    ],
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

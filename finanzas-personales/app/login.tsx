@@ -1,23 +1,14 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
 import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
 import { useAuth } from '../src/context/AuthContext';
-import { ANDROID_SHA1, LATEST_ANDROID_APK_URL } from '../src/lib/apk';
-import { isNativeGoogleSignInAvailable } from '../src/lib/googleNative';
 import { spacing } from '../src/theme';
 import { useSettings } from '../src/context/SettingsContext';
 
+/** Login opcional por email (nube). La app funciona igual sin cuenta. */
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -30,7 +21,6 @@ export default function LoginScreen() {
     clearError,
     signInEmail,
     signUpEmail,
-    signInWithGoogle,
   } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -68,38 +58,6 @@ export default function LoginScreen() {
     }
   };
 
-  const onGoogle = async () => {
-    clearError();
-    setLocalError(null);
-    setBusy(true);
-    try {
-      await signInWithGoogle();
-      router.replace('/(tabs)');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error con Google';
-      setLocalError(msg);
-      Alert.alert('Google no pudo entrar', msg.slice(0, 600), [
-        { text: 'Cerrar', style: 'cancel' },
-        {
-          text: 'Abrir Firebase SHA-1',
-          onPress: () => {
-            void Linking.openURL(
-              'https://console.firebase.google.com/project/finanzas-personales-21465/settings/general/android:com.llc.finanzaspersonales'
-            );
-          },
-        },
-        {
-          text: 'Bajar APK',
-          onPress: () => {
-            void Linking.openURL(LATEST_ANDROID_APK_URL);
-          },
-        },
-      ]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const message = localError || error;
 
   return (
@@ -109,14 +67,20 @@ export default function LoginScreen() {
           <View style={{ flex: 1 }}>
             <Title>Finanzas</Title>
             <Subtitle>
-              Iniciá sesión para guardar tus datos en la nube y recuperarlos en
-              cualquier teléfono.
+              Tus datos se guardan en este teléfono. La cuenta es opcional, solo
+              si querés respaldo en la nube.
             </Subtitle>
           </View>
         </View>
 
+        <PrimaryButton
+          label="Seguir sin cuenta"
+          tone="muted"
+          onPress={() => router.replace('/(tabs)')}
+        />
+
         <Text style={[styles.modeTitle, { color: colors.text }]}>
-          {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          {mode === 'login' ? 'Cuenta opcional' : 'Crear cuenta (opcional)'}
         </Text>
 
         {!configured ? (
@@ -126,7 +90,8 @@ export default function LoginScreen() {
               { backgroundColor: colors.bgCard, borderColor: colors.border },
             ]}>
             <Text style={{ color: colors.textMuted, lineHeight: 20 }}>
-              Firebase no configurado. Completá src/lib/firebaseConfig.ts.
+              La nube no está configurada. Podés usar la app igual: todo queda
+              guardado en el teléfono.
             </Text>
           </View>
         ) : null}
@@ -168,31 +133,6 @@ export default function LoginScreen() {
         />
 
         <Pressable
-          style={[
-            styles.googleBtn,
-            { borderColor: colors.border, backgroundColor: colors.bgCard },
-            (busy || !configured) && { opacity: 0.6 },
-          ]}
-          disabled={busy || !configured}
-          onPress={onGoogle}>
-          {busy ? (
-            <ActivityIndicator color={colors.accent} />
-          ) : (
-            <Text style={{ color: colors.text, fontWeight: '700' }}>
-              Continuar con Google
-            </Text>
-          )}
-        </Pressable>
-
-        <Text style={[styles.hint, { color: colors.textDim }]}>
-          Google nativo: {isNativeGoogleSignInAvailable() ? 'OK' : 'NO (APK viejo)'}.
-          {'\n'}
-          Si falla, en Firebase (app com.llc.finanzaspersonales) pegá este SHA-1:
-          {'\n'}
-          {ANDROID_SHA1}
-        </Text>
-
-        <Pressable
           onPress={() => {
             setMode((m) => (m === 'login' ? 'register' : 'login'));
             clearError();
@@ -225,6 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
+    marginTop: 8,
   },
   banner: {
     borderWidth: 1,
@@ -232,22 +173,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 4,
   },
-  googleBtn: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
   switchText: {
     textAlign: 'center',
     marginTop: 10,
     fontSize: 14,
-  },
-  hint: {
-    textAlign: 'center',
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 2,
   },
 });

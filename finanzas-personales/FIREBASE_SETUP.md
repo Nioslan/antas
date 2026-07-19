@@ -64,15 +64,10 @@ export const firebaseConfig = {
 
 También podés usar variables de entorno `EXPO_PUBLIC_FIREBASE_*` (ver `.env.example`).
 
-## 6. Google Sign-In en Expo
+## 6. Login
 
-- **Web:** funciona con el proveedor Google de Firebase (popup).
-- **Android APK:** usa `@react-native-google-signin/google-signin`.
-  Necesita el **SHA-1** del keystore EAS en la app Android de Firebase
-  (paso 4) y el **Web client ID** en `src/lib/firebaseConfig.ts`
-  (`googleWebClientId`).
-- Después de cambiar SHA-1 / package, hay que **reinstalar el APK nuevo**
-  (Google nativo no llega por actualización OTA).
+La app guarda todo **en el teléfono** sin cuenta. El login por email es
+opcional (respaldo en la nube). No se usa Google Sign-In.
 
 ## Qué se sincroniza
 

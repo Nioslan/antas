@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 
@@ -15,6 +15,17 @@ export type UpdateProgress = {
   message: string;
 };
 
+/** Canal fijo de las pruebas con amigos (EAS preview). */
+export const TESTERS_UPDATE_CHANNEL = 'preview';
+
+export function updatesAreSupported(): boolean {
+  return (
+    !__DEV__ &&
+    Constants.appOwnership !== 'expo' &&
+    Updates.isEnabled
+  );
+}
+
 /**
  * Checks EAS Update for a new JS bundle, downloads it, and reloads the app.
  * Only works in release builds created with EAS (not Expo Go / Metro).
@@ -29,8 +40,8 @@ export async function checkAndApplyUpdate(
     return {
       status: 'dev',
       message: es
-        ? 'Las actualizaciones desde la app funcionan en la versión descargada (APK/AAB), no en Expo Go ni en desarrollo.'
-        : 'In-app updates work on the downloaded release build (APK/AAB), not in Expo Go or development.',
+        ? 'Las actualizaciones desde la app funcionan en la versión descargada (APK), no en Expo Go ni en desarrollo.'
+        : 'In-app updates work on the downloaded release build (APK), not in Expo Go or development.',
     };
   }
 
@@ -82,8 +93,17 @@ export async function checkAndApplyUpdate(
       });
     }, 350);
 
-    await Updates.fetchUpdateAsync();
+    const fetched = await Updates.fetchUpdateAsync();
     clearInterval(tick);
+
+    if (!fetched.isNew) {
+      return {
+        status: 'upToDate',
+        message: es
+          ? 'Ya tenés la última versión disponible.'
+          : 'You already have the latest version.',
+      };
+    }
 
     onProgress?.({
       phase: 'applying',
@@ -108,6 +128,47 @@ export async function checkAndApplyUpdate(
         : `Could not update (${Platform.OS}): ${detail}`,
     };
   }
+}
+
+/**
+ * Busca y aplica update en silencio (al volver a la app).
+ * No tira errores al usuario si falla la red.
+ */
+export async function silentCheckAndApplyUpdate(): Promise<boolean> {
+  if (!updatesAreSupported()) return false;
+  try {
+    const check = await Updates.checkForUpdateAsync();
+    if (!check.isAvailable) return false;
+    const fetched = await Updates.fetchUpdateAsync();
+    if (!fetched.isNew) return false;
+    await Updates.reloadAsync();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Revisa updates cuando la app vuelve al frente (máx. 1 vez cada 2 min). */
+export function startUpdateOnResumeWatcher(): () => void {
+  if (!updatesAreSupported()) return () => undefined;
+
+  let lastCheck = 0;
+  let running = false;
+  const MIN_MS = 2 * 60 * 1000;
+
+  const onChange = (state: AppStateStatus) => {
+    if (state !== 'active') return;
+    const now = Date.now();
+    if (running || now - lastCheck < MIN_MS) return;
+    lastCheck = now;
+    running = true;
+    void silentCheckAndApplyUpdate().finally(() => {
+      running = false;
+    });
+  };
+
+  const sub = AppState.addEventListener('change', onChange);
+  return () => sub.remove();
 }
 
 export function getUpdateMeta() {

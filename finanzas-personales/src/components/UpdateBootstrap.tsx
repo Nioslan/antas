@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
+import {
+  startUpdateOnResumeWatcher,
+  updatesAreSupported,
+} from '../lib/updates';
 
 type Phase = 'checking' | 'downloading' | 'applying' | 'ready' | 'skip';
 
 /**
  * Pantalla de arranque: busca update, muestra progreso y reinicia.
- * No importa Firebase ni módulos nativos opcionales.
+ * Después, sigue revisando en silencio cada vez que vuelven a la app.
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>('checking');
@@ -16,11 +19,7 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const started = useRef(false);
 
   const updates = Updates.useUpdates();
-
-  const skipUpdates =
-    __DEV__ ||
-    Constants.appOwnership === 'expo' ||
-    !Updates.isEnabled;
+  const skipUpdates = !updatesAreSupported();
 
   useEffect(() => {
     if (skipUpdates) {
@@ -32,7 +31,7 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
-    (async () => {
+    const run = async (attempt: number) => {
       try {
         setPhase('checking');
         setProgress(0.05);
@@ -71,22 +70,35 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         setProgress(1);
         setPhase('ready');
       } catch {
-        if (!cancelled) {
-          setStatusText('No se pudo actualizar. Continuando…');
-          setProgress(1);
-          setTimeout(() => {
-            if (!cancelled) setPhase('ready');
-          }, 600);
+        if (cancelled) return;
+        // Un reintento rápido por fallas de red al abrir
+        if (attempt < 1) {
+          setStatusText('Reintentando…');
+          await new Promise((r) => setTimeout(r, 800));
+          if (!cancelled) await run(attempt + 1);
+          return;
         }
+        setStatusText('Sin conexión para actualizar. Continuando…');
+        setProgress(1);
+        setTimeout(() => {
+          if (!cancelled) setPhase('ready');
+        }, 700);
       }
-    })();
+    };
+
+    void run(0);
 
     return () => {
       cancelled = true;
     };
   }, [skipUpdates]);
 
-  // Usar progreso real del download si expo-updates lo reporta
+  // Mientras la app está en uso: si hay update nueva, se baja sola
+  useEffect(() => {
+    if (skipUpdates || (phase !== 'ready' && phase !== 'skip')) return;
+    return startUpdateOnResumeWatcher();
+  }, [skipUpdates, phase]);
+
   useEffect(() => {
     if (
       phase === 'downloading' &&

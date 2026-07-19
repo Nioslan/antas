@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getFirebaseDb, isFirebaseConfigured } from './firebase';
+import { getFirebaseDb } from './firebase';
 import { mergeFinanceStates } from './mergeFinance';
 import { emptyState } from './storage';
 import type { FinanceState } from '../types/finance';
@@ -21,8 +21,9 @@ function userDocRef(uid: string) {
   return doc(getFirebaseDb(), 'users', uid);
 }
 
+/** Sync en la nube desactivado: los datos quedan solo en el teléfono. */
 export function isCloudSyncAvailable(): boolean {
-  return isFirebaseConfigured();
+  return false;
 }
 
 /** Firestore rechaza `undefined`; hay que omitir esos campos. */
@@ -48,7 +49,7 @@ function stripUndefined<T>(value: T): T {
 
 export async function pushToCloud(uid: string, state: FinanceState): Promise<void> {
   if (!isCloudSyncAvailable()) {
-    throw new Error('Firebase no configurado');
+    throw new Error('Sync en la nube desactivado');
   }
 
   const payload = stripUndefined({

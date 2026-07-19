@@ -26,7 +26,6 @@ import {
   Subtitle,
   Title,
 } from '../src/components/ui';
-import { useAuth } from '../src/context/AuthContext';
 import { useFinance } from '../src/context/FinanceContext';
 import { useSettings } from '../src/context/SettingsContext';
 import { formatMoney } from '../src/lib/categories';
@@ -55,12 +54,7 @@ export default function SettingsScreen() {
     exportDataJson,
     importDataJson,
     state,
-    syncStatus,
-    syncError,
-    lastSyncedAt,
-    syncNow,
   } = useFinance();
-  const { user, configured, logout, loading: authLoading } = useAuth();
   const {
     colors,
     tr,
@@ -86,21 +80,9 @@ export default function SettingsScreen() {
     message: string;
   } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
-  const [accountBusy, setAccountBusy] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
-
-  const syncLabel =
-    syncStatus === 'syncing'
-      ? 'Sincronizando…'
-      : syncStatus === 'synced'
-        ? 'Sincronizado'
-        : syncStatus === 'offline'
-          ? 'Sin conexión (datos locales)'
-          : syncStatus === 'error'
-            ? 'Error de sync'
-            : 'Sin sincronizar';
 
   useEffect(() => {
     getOpenAiKey().then((key) => {
@@ -344,86 +326,6 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        {/* Cuenta / nube */}
-        <Text style={[styles.section, { color: colors.text }]}>Cuenta</Text>
-        <View
-          style={[
-            styles.accountBox,
-            { backgroundColor: colors.bgCard, borderColor: colors.border },
-          ]}>
-          {!configured ? (
-            <Text style={{ color: colors.textMuted, lineHeight: 20 }}>
-              Firebase no configurado. Seguí FIREBASE_SETUP.md.
-            </Text>
-          ) : authLoading ? (
-            <Text style={{ color: colors.textMuted }}>Cargando sesión…</Text>
-          ) : user ? (
-            <>
-              <Text style={[styles.label, { color: colors.textMuted }]}>Sesión</Text>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
-                {user.displayName || user.email || user.uid}
-              </Text>
-              {user.email && user.displayName ? (
-                <Text style={{ color: colors.textMuted, marginTop: 2 }}>
-                  {user.email}
-                </Text>
-              ) : null}
-              <Text
-                style={[styles.label, { color: colors.textMuted, marginTop: 14 }]}>
-                Sincronización
-              </Text>
-              <Text style={{ color: colors.text }}>{syncLabel}</Text>
-              {lastSyncedAt ? (
-                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
-                  Última: {new Date(lastSyncedAt).toLocaleString()}
-                </Text>
-              ) : null}
-              {syncError ? (
-                <Text style={{ color: colors.expense, marginTop: 8 }}>{syncError}</Text>
-              ) : null}
-              <PrimaryButton
-                label="Sincronizar ahora"
-                onPress={async () => {
-                  setAccountBusy(true);
-                  try {
-                    await syncNow();
-                  } finally {
-                    setAccountBusy(false);
-                  }
-                }}
-                disabled={accountBusy}
-              />
-              <Pressable
-                style={[styles.outlineBtn, { borderColor: colors.border }]}
-                disabled={accountBusy}
-                onPress={async () => {
-                  setAccountBusy(true);
-                  try {
-                    await logout();
-                    router.replace('/(tabs)');
-                  } finally {
-                    setAccountBusy(false);
-                  }
-                }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>
-                  Cerrar sesión
-                </Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={{ color: colors.text, lineHeight: 21, marginBottom: 10 }}>
-                Tus datos se guardan en este teléfono. La cuenta es opcional: solo
-                si querés un respaldo en la nube.
-              </Text>
-              <PrimaryButton
-                label="Cuenta opcional (email)"
-                onPress={() => router.push('/login')}
-              />
-            </>
-          )}
-        </View>
-
         {/* Apariencia */}
         <Text style={[styles.section, { color: colors.text }]}>
           {tr('sectionAppearance')}
@@ -642,11 +544,11 @@ export default function SettingsScreen() {
         <SettingsRow
           icon={<Ionicons name="shield-checkmark-outline" size={20} color={colors.accent} />}
           title={tr('privacy')}
-          subtitle="Local + nube opcional con tu cuenta Firebase."
+          subtitle="Todo queda en este teléfono."
           onPress={() =>
             Alert.alert(
               tr('privacy'),
-              'Movimientos, metas y efectivo viven en este teléfono y, si iniciás sesión, se sincronizan en tu cuenta Firebase. La API key de OpenAI queda solo en el dispositivo (SecureStore).'
+              'Movimientos, metas y efectivo se guardan solo en este teléfono. Podés exportar o importar un respaldo local desde Datos. La API key de OpenAI queda en el dispositivo (SecureStore).'
             )
           }
           right={
@@ -711,19 +613,6 @@ const styles = StyleSheet.create({
   aiBox: {
     gap: 12,
     marginTop: -4,
-  },
-  accountBox: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    gap: 8,
-  },
-  outlineBtn: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginTop: 4,
   },
   updateOverlay: {
     flex: 1,

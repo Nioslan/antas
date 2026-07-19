@@ -16,6 +16,7 @@ import {
 } from '../lib/cloudSync';
 import { learnFromTransaction } from '../lib/fixedExpenses';
 import {
+  cancelFixedReminders,
   notifyDueBillsNow,
   scheduleFixedReminders,
 } from '../lib/notifications';
@@ -304,7 +305,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [online, ready, syncNow, syncStatus, user]);
 
   useEffect(() => {
-    if (!ready || !settings.notificationsEnabled) return;
+    if (!ready) return;
+    if (!settings.notificationsEnabled) {
+      void cancelFixedReminders();
+      return;
+    }
     void scheduleFixedReminders(state.fixedExpenses);
     // Aviso inmediato (una vez al día) si hay fijos por pagar pronto
     void notifyDueBillsNow(state.fixedExpenses);

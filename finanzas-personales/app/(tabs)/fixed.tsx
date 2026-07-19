@@ -28,10 +28,11 @@ import {
   upcomingFixed,
 } from '../../src/lib/fixedExpenses';
 import {
+  cancelFixedReminders,
   ensureNotificationPermissions,
   listDueSoonBills,
   notifyDueBillsNow,
-  sendTestBillNotification,
+  scheduleFixedReminders,
   vibrateForBillAlert,
 } from '../../src/lib/notifications';
 import { colors, radius, spacing } from '../../src/theme';
@@ -39,7 +40,7 @@ import { colors, radius, spacing } from '../../src/theme';
 export default function FixedExpensesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { settings } = useSettings();
+  const { settings, setNotificationsEnabled } = useSettings();
   const {
     state,
     updateFixedExpense,
@@ -66,35 +67,24 @@ export default function FixedExpensesScreen() {
     if (dueToday.length > 0) vibrateForBillAlert();
   }, [dueSoon.length, dueToday.length, settings.notificationsEnabled]);
 
-  const enableAlerts = async () => {
-    const ok = await ensureNotificationPermissions();
-    await refreshFixedReminders();
-    if (ok) {
-      const result = await notifyDueBillsNow(state.fixedExpenses, {
-        force: true,
-      });
-      Alert.alert(
-        'Avisos activos',
-        result.count > 0
-          ? `Te aviso afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago. Ahora tenés ${result.count} por pagar pronto.`
-          : 'Te aviso afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago.'
-      );
-    } else {
-      Alert.alert(
-        'Permiso pendiente',
-        'Activá las notificaciones en Ajustes del celular para recibir avisos afuera de la app.'
-      );
+  const onToggleAlerts = async (value: boolean) => {
+    if (value) {
+      const ok = await ensureNotificationPermissions();
+      if (!ok) {
+        setNotificationsEnabled(false);
+        Alert.alert(
+          'Permiso pendiente',
+          'Activá las notificaciones en Ajustes del celular para recibir avisos.'
+        );
+        return;
+      }
+      setNotificationsEnabled(true);
+      await scheduleFixedReminders(state.fixedExpenses);
+      await notifyDueBillsNow(state.fixedExpenses, { force: true });
+      return;
     }
-  };
-
-  const testAlert = async () => {
-    const ok = await sendTestBillNotification();
-    Alert.alert(
-      ok ? 'Aviso de prueba enviado' : 'Sin permiso',
-      ok
-        ? 'Mirá la notificación afuera de la app. El teléfono también debería vibrar.'
-        : 'Activá las notificaciones en Ajustes del celular.'
-    );
+    setNotificationsEnabled(false);
+    await cancelFixedReminders();
   };
 
   const onPay = (id: string, name: string, amount: number) => {
@@ -120,10 +110,37 @@ export default function FixedExpensesScreen() {
             <Text style={styles.brand}>Fijos</Text>
             <Title>Gastos fijos</Title>
             <Subtitle>
-              Te aviso afuera de la app (y vibra el teléfono) 5, 3 y 1 día antes,
-              y el día del pago. Tocá Pagar para registrarlo.
+              Tocá Pagar para registrar un gasto fijo. Podés activar avisos
+              afuera de la app (con vibración).
             </Subtitle>
           </View>
+        </View>
+
+        <View style={styles.alertsRow}>
+          <Ionicons
+            name={
+              settings.notificationsEnabled
+                ? 'notifications'
+                : 'notifications-off-outline'
+            }
+            size={18}
+            color={
+              settings.notificationsEnabled ? colors.accent : colors.textDim
+            }
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.alertsTitle}>Avisos y notificaciones</Text>
+            <Text style={styles.alertsHint}>
+              {settings.notificationsEnabled
+                ? 'Activos · 5, 3 y 1 día antes, y el día'
+                : 'Apagados'}
+            </Text>
+          </View>
+          <Switch
+            value={settings.notificationsEnabled}
+            onValueChange={onToggleAlerts}
+            trackColor={{ true: colors.accent, false: colors.border }}
+          />
         </View>
 
         {dueSoon.length > 0 ? (
@@ -155,16 +172,6 @@ export default function FixedExpensesScreen() {
         ) : null}
 
         <PrimaryButton label="+ Agregar fijo" onPress={() => router.push('/add-fixed')} />
-        <PrimaryButton
-          label="Activar avisos + vibración"
-          tone="muted"
-          onPress={enableAlerts}
-        />
-        <PrimaryButton
-          label="Probar aviso ahora"
-          tone="muted"
-          onPress={testAlert}
-        />
 
         {upcoming.length > 0 && (
           <Card style={styles.upcoming}>
@@ -309,6 +316,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+  },
+  alertsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+  },
+  alertsTitle: {
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  alertsHint: {
+    color: colors.textDim,
+    fontSize: 11,
+    marginTop: 1,
   },
   alertBanner: {
     flexDirection: 'row',

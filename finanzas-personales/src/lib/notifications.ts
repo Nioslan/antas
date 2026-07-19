@@ -200,6 +200,16 @@ async function scheduleOne(
   return true;
 }
 
+/** Apaga todos los avisos programados y limpia el badge. */
+export async function cancelFixedReminders(): Promise<void> {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.setBadgeCountAsync(0);
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Programa avisos 5 / 3 / 1 día antes, el día a la mañana y a la tarde
  * (próximos 3 meses) + actualiza el badge del icono.

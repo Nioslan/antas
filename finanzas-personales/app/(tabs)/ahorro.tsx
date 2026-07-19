@@ -30,7 +30,7 @@ import { colors, radius, spacing } from '../../src/theme';
 const QUICK = [1, 5, 10, 20, 50, 100];
 const PERCENT_PRESETS = [10, 15, 20, 25, 30, 50];
 
-export default function AhoraScreen() {
+export default function AhorroScreen() {
   const insets = useSafeAreaInsets();
   const { cashNow, adjustCashNow, setCashNow, state } = useFinance();
   const {
@@ -66,7 +66,7 @@ export default function AhoraScreen() {
   return (
     <Screen style={{ paddingTop: insets.top + 8 }}>
       <KeyboardForm contentContainerStyle={styles.content} bottomOffset={80}>
-        <Text style={styles.brand}>Ahora</Text>
+        <Text style={styles.brand}>Ahorro</Text>
         <Title>Tu plata actual</Title>
         <Subtitle>
           Subí o bajá el monto a tu voluntad. Si activás el bono, los sábados se
@@ -74,7 +74,7 @@ export default function AhoraScreen() {
         </Subtitle>
 
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Tengo ahora</Text>
+          <Text style={styles.heroLabel}>Tengo en ahorro</Text>
           <Text
             style={[
               styles.heroAmount,
@@ -139,7 +139,7 @@ export default function AhoraScreen() {
                 Ganancia libre de esta semana: {formatMoney(preview.weekLibre)}
               </Text>
               <Text style={styles.bonusBody}>
-                {percent}% que se suma a Ahora: {formatMoney(preview.bonus)}
+                {percent}% que se suma a Ahorro: {formatMoney(preview.bonus)}
               </Text>
               <Text style={styles.bonusMeta}>
                 {preview.alreadyApplied

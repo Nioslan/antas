@@ -31,7 +31,7 @@ function goalPlan(s: CoachSnapshot): string {
     return `Para "${g.name}" te faltan ${formatMoney(left)}, pero esta semana el libre está en ${formatMoney(s.weekLibre)}. Primero estabilizá gastos (empezá por ${s.topWeekExpenses[0]?.label ?? 'la categoría más alta'}) y después volvé a aportar.`;
   }
   const weeks = Math.ceil(left / weeklySave);
-  return `Meta "${g.name}": faltan ${formatMoney(left)}. Si apartás ~${formatMoney(weeklySave)}/semana (20% de tu libre), llegás en unas ${weeks} semana(s). Tip: el sábado ese 20% ya se suma solo a "Ahora"; podés moverlo a la meta desde ahí.`;
+  return `Meta "${g.name}": faltan ${formatMoney(left)}. Si apartás ~${formatMoney(weeklySave)}/semana (20% de tu libre), llegás en unas ${weeks} semana(s). Tip: el sábado ese 20% ya se suma solo a "Ahorro"; podés moverlo a la meta desde ahí.`;
 }
 
 function spendingAdvice(s: CoachSnapshot): string {
@@ -95,7 +95,7 @@ function actionPlan(s: CoachSnapshot): string {
       )}.`
     );
     actions.push(
-      `2) Apartá ${formatMoney(Math.max(s.weekLibre * 0.2, 0))} hacia tu meta o dejalo que el sábado vaya a Ahora.`
+      `2) Apartá ${formatMoney(Math.max(s.weekLibre * 0.2, 0))} hacia tu meta o dejalo que el sábado vaya a Ahorro.`
     );
     actions.push(
       '3) Anotá cada gasto con nota corta (dónde/en qué) para afinar el coach.'
@@ -155,7 +155,7 @@ function localCoachReply(state: FinanceState, userMessage: string): string {
     msg.includes('sábado') ||
     msg.includes('bono')
   ) {
-    return `En Ahora tenés ${formatMoney(s.cashNow)}. El bono del sábado (20% del libre semanal) sería ${formatMoney(s.saturdayBonus)} sobre un libre de ${formatMoney(s.weekLibreForBonus)}${s.bonusAlreadyApplied ? ' y ya se aplicó esta semana' : ' y se aplica al abrir la app sábado/domingo'}. Usá ese bono para meta o colchón, no para gasto chico.`;
+    return `En Ahorro tenés ${formatMoney(s.cashNow)}. El bono del sábado (20% del libre semanal) sería ${formatMoney(s.saturdayBonus)} sobre un libre de ${formatMoney(s.weekLibreForBonus)}${s.bonusAlreadyApplied ? ' y ya se aplicó esta semana' : ' y se aplica al abrir la app sábado/domingo'}. Usá ese bono para meta o colchón, no para gasto chico.`;
   }
 
   if (
@@ -283,7 +283,7 @@ Tu estilo:
 - Respondé con diagnóstico + 2 o 3 acciones concretas y medibles (montos, categorías, plazos).
 - Sé humano, claro y directo. Evitá frases genéricas tipo "ahorra más".
 - Si faltan datos, pedí exactamente qué registrar.
-- Tené en cuenta: libre = ingresos − gastos; pestaña Ahora = efectivo manual; los sábados se suma 20% del libre semanal a Ahora; las metas se alimentan con ese margen.
+- Tené en cuenta: libre = ingresos − gastos; pestaña Ahorro = efectivo manual; los sábados se suma un % del libre semanal a Ahorro; las metas se alimentan con ese margen.
 - Longitud: 140–220 palabras. Podés usar viñetas cortas.
 
 Contexto del usuario:
@@ -387,6 +387,6 @@ export function dailyInsight(state: FinanceState): string {
       : 'Todavía faltan gastos cargados para ver fugas.',
     s.saturdayBonus > 0
       ? `Bono sábado estimado: ${formatMoney(s.saturdayBonus)}.`
-      : 'Si cerrás en positivo, el sábado suma 20% a Ahora.',
+      : 'Si cerrás en positivo, el sábado suma un % a Ahorro.',
   ].join(' ');
 }

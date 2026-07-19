@@ -11,7 +11,7 @@ export type AppSettings = {
   notificationsEnabled: boolean;
   hapticsEnabled: boolean;
   saturdayBonusEnabled: boolean;
-  /** Porcentaje del libre semanal que se suma a Ahora (0–100). */
+  /** Porcentaje del libre semanal que se suma a Ahorro (0–100). */
   saturdayBonusPercent: number;
 };
 

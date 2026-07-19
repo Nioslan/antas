@@ -499,7 +499,7 @@ export default function SettingsScreen() {
           title={tr('saturdayBonus')}
           subtitle={
             settings.saturdayBonusEnabled
-              ? `Activo · ${settings.saturdayBonusPercent}% (cambialo en Ahora)`
+              ? `Activo · ${settings.saturdayBonusPercent}% (cambialo en Ahorro)`
               : tr('saturdayBonusHint')
           }
           right={

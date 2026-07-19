@@ -63,9 +63,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="ahora"
+        name="ahorro"
         options={{
-          title: 'Ahora',
+          title: 'Ahorro',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cash-outline" size={size} color={color} />
           ),

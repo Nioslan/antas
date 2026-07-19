@@ -72,11 +72,11 @@ function weekHealth(s: CoachSnapshot): string {
 
   return [
     `Semana: ingresos ${formatMoney(s.weekIngreso)}, gastos ${formatMoney(s.weekGasto)}, libre ${formatMoney(s.weekLibre)} (${s.savingsRateWeek.toFixed(0)}% de lo que entró).`,
-    `Hoy libre ${formatMoney(s.dayLibre)}. En mano (Ahora) tenés ${formatMoney(s.cashNow)}.`,
+    `Hoy libre ${formatMoney(s.dayLibre)}. En ahorro tenés ${formatMoney(s.cashNow)}.`,
     `La semana viene ${compare}. En resumen, ${verdict}.`,
     s.saturdayBonus > 0
-      ? `Bono sábado estimado: +${formatMoney(s.saturdayBonus)} a Ahora${s.bonusAlreadyApplied ? ' (ya aplicado)' : ''}.`
-      : 'Si cerrás la semana con libre positivo, el sábado se suma el 20% a Ahora.',
+      ? `Bono sábado estimado: +${formatMoney(s.saturdayBonus)} a Ahorro${s.bonusAlreadyApplied ? ' (ya aplicado)' : ''}.`
+      : 'Si cerrás la semana con libre positivo, el sábado se suma el 20% a Ahorro.',
   ].join(' ');
 }
 

@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
 import { Field, PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
 import { useAuth } from '../src/context/AuthContext';
-import { LATEST_ANDROID_APK_URL } from '../src/lib/apk';
+import { ANDROID_SHA1, LATEST_ANDROID_APK_URL } from '../src/lib/apk';
+import { isNativeGoogleSignInAvailable } from '../src/lib/googleNative';
 import { spacing } from '../src/theme';
 import { useSettings } from '../src/context/SettingsContext';
 
@@ -77,21 +78,23 @@ export default function LoginScreen() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error con Google';
       setLocalError(msg);
-      if (
-        msg.includes('APK') ||
-        msg.includes('SHA-1') ||
-        msg.includes('nativo')
-      ) {
-        Alert.alert('Google en el teléfono', msg, [
-          { text: 'Cerrar', style: 'cancel' },
-          {
-            text: 'Bajar APK nuevo',
-            onPress: () => {
-              void Linking.openURL(LATEST_ANDROID_APK_URL);
-            },
+      Alert.alert('Google no pudo entrar', msg.slice(0, 600), [
+        { text: 'Cerrar', style: 'cancel' },
+        {
+          text: 'Abrir Firebase SHA-1',
+          onPress: () => {
+            void Linking.openURL(
+              'https://console.firebase.google.com/project/finanzas-personales-21465/settings/general/android:com.llc.finanzaspersonales'
+            );
           },
-        ]);
-      }
+        },
+        {
+          text: 'Bajar APK',
+          onPress: () => {
+            void Linking.openURL(LATEST_ANDROID_APK_URL);
+          },
+        },
+      ]);
     } finally {
       setBusy(false);
     }
@@ -182,8 +185,11 @@ export default function LoginScreen() {
         </Pressable>
 
         <Text style={[styles.hint, { color: colors.textDim }]}>
-          Si Google falla en el teléfono, instalá el APK nuevo (Google nativo) y
-          en Firebase agregá el SHA-1 de la app Android.
+          Google nativo: {isNativeGoogleSignInAvailable() ? 'OK' : 'NO (APK viejo)'}.
+          {'\n'}
+          Si falla, en Firebase (app com.llc.finanzaspersonales) pegá este SHA-1:
+          {'\n'}
+          {ANDROID_SHA1}
         </Text>
 
         <Pressable

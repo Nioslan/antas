@@ -217,7 +217,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (!settingsReady) return;
     loadFinanceState().then((loaded) => {
       const { state: withBonus } = settings.saturdayBonusEnabled
-        ? applySaturdayBonusIfDue(loaded)
+        ? applySaturdayBonusIfDue(loaded, settings.saturdayBonusPercent)
         : { state: loaded };
       setState(withBonus);
       setReady(true);
@@ -230,12 +230,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready || !settings.saturdayBonusEnabled) return;
-    const { state: next, applied } = applySaturdayBonusIfDue(state);
+    const { state: next, applied } = applySaturdayBonusIfDue(
+      state,
+      settings.saturdayBonusPercent
+    );
     if (applied) setState(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     ready,
     settings.saturdayBonusEnabled,
+    settings.saturdayBonusPercent,
     state.transactions,
     state.lastSaturdayBonusWeek,
   ]);

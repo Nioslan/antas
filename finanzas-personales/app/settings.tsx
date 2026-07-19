@@ -497,7 +497,11 @@ export default function SettingsScreen() {
         <SettingsRow
           icon={<Ionicons name="calendar-outline" size={20} color={colors.accent} />}
           title={tr('saturdayBonus')}
-          subtitle={tr('saturdayBonusHint')}
+          subtitle={
+            settings.saturdayBonusEnabled
+              ? `Activo · ${settings.saturdayBonusPercent}% (cambialo en Ahora)`
+              : tr('saturdayBonusHint')
+          }
           right={
             <Switch
               value={settings.saturdayBonusEnabled}

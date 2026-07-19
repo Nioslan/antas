@@ -21,6 +21,7 @@ import {
   type AppSettings,
 } from '../lib/appSettings';
 import { configureMoneyFormat } from '../lib/moneyFormat';
+import { clampBonusPercent } from '../lib/saturdayBonus';
 import { darkColors, lightColors, type ThemeColors } from '../theme';
 
 type SettingsContextValue = {
@@ -36,6 +37,7 @@ type SettingsContextValue = {
   setNotificationsEnabled: (value: boolean) => void;
   setHapticsEnabled: (value: boolean) => void;
   setSaturdayBonusEnabled: (value: boolean) => void;
+  setSaturdayBonusPercent: (value: number) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   currencyOptions: typeof CURRENCY_OPTIONS;
 };
@@ -104,6 +106,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         updateSettings({ hapticsEnabled }),
       setSaturdayBonusEnabled: (saturdayBonusEnabled) =>
         updateSettings({ saturdayBonusEnabled }),
+      setSaturdayBonusPercent: (saturdayBonusPercent) =>
+        updateSettings({
+          saturdayBonusPercent: clampBonusPercent(saturdayBonusPercent),
+        }),
       updateSettings,
       currencyOptions: CURRENCY_OPTIONS,
     }),

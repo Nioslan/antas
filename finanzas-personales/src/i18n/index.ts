@@ -23,7 +23,7 @@ const es: Dict = {
     'Avisos afuera de la app (con vibración): 5, 3 y 1 día antes, y el día del pago.',
   haptics: 'Vibración al tocar',
   saturdayBonus: 'Bono del sábado',
-  saturdayBonusHint: 'Sumar 20% del libre semanal a Ahora.',
+  saturdayBonusHint: 'Sumar un % del libre semanal a Ahora (se configura en Ahora).',
   sectionAi: 'Inteligencia artificial',
   aiTitle: 'Coach con OpenAI',
   aiHint:
@@ -78,7 +78,7 @@ const en: Dict = {
     'Outside alerts with vibration: 5, 3 and 1 day before, and on the due day.',
   haptics: 'Haptics on tap',
   saturdayBonus: 'Saturday bonus',
-  saturdayBonusHint: 'Add 20% of weekly free cash to Now.',
+  saturdayBonusHint: 'Add a % of weekly free cash to Now (set it in Now).',
   sectionAi: 'Artificial intelligence',
   aiTitle: 'OpenAI coach',
   aiHint:

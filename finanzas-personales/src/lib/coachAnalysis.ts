@@ -70,7 +70,10 @@ function toCategoryTotals(
   }));
 }
 
-export function buildCoachSnapshot(state: FinanceState): CoachSnapshot {
+export function buildCoachSnapshot(
+  state: FinanceState,
+  bonusPercent = 20
+): CoachSnapshot {
   const today = todayKey();
   const day = summarizePeriod(state.transactions, 'day', today);
   const week = summarizePeriod(state.transactions, 'week', today);
@@ -93,7 +96,7 @@ export function buildCoachSnapshot(state: FinanceState): CoachSnapshot {
     Math.min(7, Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24)) + 1)
   );
 
-  const bonus = previewSaturdayBonus(state);
+  const bonus = previewSaturdayBonus(state, bonusPercent);
 
   const gastos = weekTx.filter((t) => t.type === 'gasto');
   const ingresos = weekTx.filter((t) => t.type === 'giro');

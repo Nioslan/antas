@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -18,22 +19,49 @@ import {
   Title,
 } from '../../src/components/ui';
 import { useFinance } from '../../src/context/FinanceContext';
+import { useSettings } from '../../src/context/SettingsContext';
 import { formatMoney } from '../../src/lib/categories';
-import { previewSaturdayBonus } from '../../src/lib/saturdayBonus';
+import {
+  clampBonusPercent,
+  previewSaturdayBonus,
+} from '../../src/lib/saturdayBonus';
 import { colors, radius, spacing } from '../../src/theme';
 
 const QUICK = [1, 5, 10, 20, 50, 100];
+const PERCENT_PRESETS = [10, 15, 20, 25, 30, 50];
 
 export default function AhoraScreen() {
   const insets = useSafeAreaInsets();
   const { cashNow, adjustCashNow, setCashNow, state } = useFinance();
+  const {
+    settings,
+    setSaturdayBonusEnabled,
+    setSaturdayBonusPercent,
+  } = useSettings();
   const [amount, setAmount] = useState('10');
   const [setValue, setSetValue] = useState('');
+  const [customPercent, setCustomPercent] = useState(
+    String(settings.saturdayBonusPercent)
+  );
 
-  const preview = useMemo(() => previewSaturdayBonus(state), [state]);
+  const percent = settings.saturdayBonusPercent;
+  const enabled = settings.saturdayBonusEnabled;
+
+  const preview = useMemo(
+    () => previewSaturdayBonus(state, percent),
+    [state, percent]
+  );
 
   const parsed = Number(amount.replace(',', '.'));
   const valid = Number.isFinite(parsed) && parsed > 0;
+
+  const applyCustomPercent = () => {
+    const n = Number(customPercent.replace(',', '.'));
+    if (!Number.isFinite(n)) return;
+    const next = clampBonusPercent(n);
+    setSaturdayBonusPercent(next);
+    setCustomPercent(String(next));
+  };
 
   return (
     <Screen style={{ paddingTop: insets.top + 8 }}>
@@ -41,8 +69,8 @@ export default function AhoraScreen() {
         <Text style={styles.brand}>Ahora</Text>
         <Title>Tu plata actual</Title>
         <Subtitle>
-          Subí o bajá el monto a tu voluntad. Los sábados se suma solo el 20% de
-          la ganancia de la semana.
+          Subí o bajá el monto a tu voluntad. Si activás el bono, los sábados se
+          suma un porcentaje de la ganancia libre de la semana.
         </Subtitle>
 
         <View style={styles.hero}>
@@ -58,18 +86,73 @@ export default function AhoraScreen() {
         </View>
 
         <Card style={styles.bonusCard}>
-          <Text style={styles.bonusTitle}>Bono del sábado · 20%</Text>
-          <Text style={styles.bonusBody}>
-            Ganancia libre de esta semana: {formatMoney(preview.weekLibre)}
-          </Text>
-          <Text style={styles.bonusBody}>
-            20% que se suma a Ahora: {formatMoney(preview.bonus)}
-          </Text>
-          <Text style={styles.bonusMeta}>
-            {preview.alreadyApplied
-              ? 'Ya se aplicó el bono de esta semana.'
-              : `Se aplica al abrir la app el sábado ${preview.saturday} (o el domingo).`}
-          </Text>
+          <View style={styles.bonusHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bonusTitle}>Bono del sábado</Text>
+              <Text style={styles.bonusBody}>
+                {enabled
+                  ? `Activo · ${percent}% del libre semanal`
+                  : 'Apagado · no se suma nada el sábado'}
+              </Text>
+            </View>
+            <Switch
+              value={enabled}
+              onValueChange={setSaturdayBonusEnabled}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
+          </View>
+
+          {enabled ? (
+            <>
+              <Text style={styles.percentLabel}>Porcentaje</Text>
+              <View style={styles.quick}>
+                {PERCENT_PRESETS.map((n) => (
+                  <Chip
+                    key={n}
+                    label={`${n}%`}
+                    active={percent === n}
+                    onPress={() => {
+                      setSaturdayBonusPercent(n);
+                      setCustomPercent(String(n));
+                    }}
+                  />
+                ))}
+              </View>
+              <View style={styles.customRow}>
+                <TextInput
+                  style={[styles.input, styles.percentInput]}
+                  value={customPercent}
+                  onChangeText={setCustomPercent}
+                  keyboardType="number-pad"
+                  placeholder="20"
+                  placeholderTextColor={colors.textDim}
+                  maxLength={3}
+                />
+                <PrimaryButton
+                  label="Usar %"
+                  tone="muted"
+                  onPress={applyCustomPercent}
+                />
+              </View>
+
+              <Text style={styles.bonusBody}>
+                Ganancia libre de esta semana: {formatMoney(preview.weekLibre)}
+              </Text>
+              <Text style={styles.bonusBody}>
+                {percent}% que se suma a Ahora: {formatMoney(preview.bonus)}
+              </Text>
+              <Text style={styles.bonusMeta}>
+                {preview.alreadyApplied
+                  ? 'Ya se aplicó el bono de esta semana.'
+                  : `Se aplica al abrir la app el sábado ${preview.saturday} (o el domingo).`}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.bonusMeta}>
+              Activá el interruptor si querés que cada sábado se sume un % de lo
+              que te quedó libre en la semana.
+            </Text>
+          )}
         </Card>
 
         <View style={styles.controls}>
@@ -169,7 +252,13 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   bonusCard: {
-    gap: 6,
+    gap: 8,
+  },
+  bonusHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
   },
   bonusTitle: {
     color: colors.accent,
@@ -184,8 +273,23 @@ const styles = StyleSheet.create({
   bonusMeta: {
     color: colors.textDim,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 2,
     lineHeight: 18,
+  },
+  percentLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  customRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  percentInput: {
+    width: 88,
+    textAlign: 'center',
   },
   controls: {
     flexDirection: 'row',

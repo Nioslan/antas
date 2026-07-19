@@ -68,6 +68,39 @@ export async function saveFinanceState(state: FinanceState): Promise<void> {
   await AsyncStorage.setItem(DATA_KEY, JSON.stringify(state));
 }
 
+/** Parsea un backup JSON (exportado desde Ajustes). */
+export function parseFinanceStateJson(raw: string): FinanceState {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error('El respaldo está vacío.');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error('Ese texto no es un JSON válido.');
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('El respaldo no tiene el formato de la app.');
+  }
+  const data = parsed as Partial<FinanceState>;
+  if (!Array.isArray(data.transactions) && !Array.isArray(data.goals) && !Array.isArray(data.fixedExpenses)) {
+    throw new Error(
+      'No parece un respaldo de Finanzas Personales (faltan movimientos/metas/fijos).'
+    );
+  }
+  return {
+    transactions: Array.isArray(data.transactions) ? data.transactions : [],
+    goals: Array.isArray(data.goals) ? data.goals : [],
+    chatHistory: Array.isArray(data.chatHistory) ? data.chatHistory : [],
+    cashNow:
+      typeof data.cashNow === 'number' && Number.isFinite(data.cashNow)
+        ? data.cashNow
+        : 0,
+    lastSaturdayBonusWeek: data.lastSaturdayBonusWeek,
+    fixedExpenses: normalizeFixed(data.fixedExpenses),
+    updatedAt: data.updatedAt ?? new Date().toISOString(),
+  };
+}
+
 async function useSecureStore(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {

@@ -20,7 +20,12 @@ import {
   scheduleFixedReminders,
 } from '../lib/notifications';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
-import { emptyState, loadFinanceState, saveFinanceState } from '../lib/storage';
+import {
+  emptyState,
+  loadFinanceState,
+  parseFinanceStateJson,
+  saveFinanceState,
+} from '../lib/storage';
 import { summarizeCapital, summarizeDay } from '../lib/summary';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
@@ -95,6 +100,7 @@ interface FinanceContextValue {
   clearChat: () => void;
   resetAllData: () => Promise<void>;
   exportDataJson: () => string;
+  importDataJson: (raw: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   chatting: boolean;
   syncStatus: SyncStatus;
   syncError: string | null;
@@ -621,6 +627,29 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(state, null, 2);
   }, [state]);
 
+  const importDataJson = useCallback(async (raw: string) => {
+    try {
+      const next = parseFinanceStateJson(raw);
+      const stamped = { ...next, updatedAt: new Date().toISOString() };
+      skipPushRef.current = false;
+      setState(stamped);
+      await saveFinanceState(stamped);
+      if (user && isCloudSyncAvailable()) {
+        try {
+          await pushToCloud(user.uid, stamped);
+        } catch {
+          // local ya quedó
+        }
+      }
+      return { ok: true as const };
+    } catch (err) {
+      return {
+        ok: false as const,
+        error: err instanceof Error ? err.message : 'No se pudo importar.',
+      };
+    }
+  }, [user]);
+
   const adjustCashNow = useCallback((delta: number) => {
     if (!Number.isFinite(delta) || delta === 0) return;
     setState((prev) => ({
@@ -660,6 +689,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     clearChat,
     resetAllData,
     exportDataJson,
+    importDataJson,
     chatting,
     syncStatus,
     syncError,

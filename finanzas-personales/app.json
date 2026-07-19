@@ -24,8 +24,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.llc.finanzaspersonales",
-      "googleServicesFile": "./google-services.json",
+      "package": "com.finanzas.personales",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",

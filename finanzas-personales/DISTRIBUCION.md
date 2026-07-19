@@ -9,11 +9,11 @@
 
 ## APK único para todos (instalación inicial)
 
-```
-https://expo.dev/artifacts/eas/FAkdIII7FYEBoBOHEnPTE4muiWk4pg0F2K0vW9r5N4w.apk
-```
+> **Importante:** el package debe ser `com.finanzas.personales` para que
+> actualizar NO borre los datos. No uses APKs con `com.llc.finanzaspersonales`.
 
-Mandales ese link por WhatsApp. Que instalen **esa** app (Finanzas Personales / billetera mint).
+El link se actualiza en `src/lib/apk.ts` cada vez que sale un APK nuevo.
+Mandales ese link por WhatsApp. Que instalen **esa** app (ícono billetera mint).
 
 ## Qué deciles a tus amigos
 

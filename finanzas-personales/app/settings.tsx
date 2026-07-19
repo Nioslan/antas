@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
     clearChat,
     resetAllData,
     exportDataJson,
+    importDataJson,
     state,
     syncStatus,
     syncError,
@@ -85,6 +87,9 @@ export default function SettingsScreen() {
   } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const syncLabel =
     syncStatus === 'syncing'
@@ -193,6 +198,22 @@ export default function SettingsScreen() {
     }
   };
 
+  const runImport = async () => {
+    setImporting(true);
+    try {
+      const result = await importDataJson(importText);
+      if (!result.ok) {
+        Alert.alert('No se pudo importar', result.error);
+        return;
+      }
+      setImportOpen(false);
+      setImportText('');
+      Alert.alert('Listo', 'Tus datos se recuperaron en este teléfono.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const confirmClearChat = () => {
     Alert.alert(tr('clearChat'), '¿Borrar el historial del coach?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -250,6 +271,62 @@ export default function SettingsScreen() {
             <Text style={{ color: colors.textDim, fontSize: 12, marginTop: 12, textAlign: 'center' }}>
               No cierres la app. Tus datos se mantienen.
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={importOpen} transparent animationType="slide">
+        <View style={styles.updateOverlay}>
+          <View style={[styles.updateCard, { backgroundColor: colors.bgCard, maxHeight: '85%' }]}>
+            <Text style={[styles.updateTitle, { color: colors.text }]}>
+              {tr('importData')}
+            </Text>
+            <Text
+              style={{
+                color: colors.textMuted,
+                marginBottom: 12,
+                textAlign: 'center',
+                lineHeight: 20,
+              }}>
+              Abrí la app vieja (si todavía la tenés) → Ajustes → Exportar datos,
+              copiá el texto y pegalo acá.
+            </Text>
+            <TextInput
+              value={importText}
+              onChangeText={setImportText}
+              placeholder='{"transactions":[],"goals":[]...}'
+              placeholderTextColor={colors.textDim}
+              multiline
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                minHeight: 160,
+                maxHeight: 260,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 12,
+                padding: 12,
+                color: colors.text,
+                textAlignVertical: 'top',
+                marginBottom: 12,
+                fontSize: 12,
+              }}
+            />
+            <PrimaryButton
+              label={importing ? 'Importando…' : 'Restaurar datos'}
+              onPress={runImport}
+              disabled={importing || !importText.trim()}
+            />
+            <Pressable
+              onPress={() => {
+                setImportOpen(false);
+                setImportText('');
+              }}
+              style={{ marginTop: 12, alignItems: 'center' }}>
+              <Text style={{ color: colors.textMuted, fontWeight: '600' }}>
+                Cancelar
+              </Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -501,6 +578,15 @@ export default function SettingsScreen() {
           icon={<Ionicons name="share-outline" size={20} color={colors.accent} />}
           title={tr('exportData')}
           onPress={exportData}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="download-outline" size={20} color={colors.accent} />}
+          title={tr('importData')}
+          subtitle={tr('importDataHint')}
+          onPress={() => setImportOpen(true)}
           right={
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
           }

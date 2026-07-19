@@ -70,7 +70,7 @@ export async function pushToCloud(uid: string, state: FinanceState): Promise<voi
 
 export async function pullFromCloud(uid: string): Promise<FinanceState | null> {
   if (!isCloudSyncAvailable()) {
-    throw new Error('Firebase no configurado');
+    throw new Error('Sync en la nube desactivado');
   }
 
   const snap = await getDoc(userDocRef(uid));

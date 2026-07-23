@@ -9,21 +9,25 @@ import {
 } from 'react-native';
 import {
   applyPreparedUpdate,
+  checkAndPrepareUpdate,
   getReadyUpdateId,
-  prepareAvailableUpdate,
   startUpdateAvailabilityWatcher,
   updatesAreSupported,
+  type UpdateProgress,
 } from '../lib/updates';
 import { notifyAppUpdateReady } from '../lib/notifications';
 
 /**
  * No bloquea el arranque.
- * En segundo plano descarga updates, manda notificación y muestra un aviso
+ * Muestra barra de progreso al descargar, notificación + modal
  * para que el usuario elija cuándo instalar (sin perder datos).
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [readyVisible, setReadyVisible] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<UpdateProgress | null>(
+    null
+  );
   const skipUpdates = !updatesAreSupported();
   const started = useRef(false);
 
@@ -34,31 +38,42 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
-    const showReady = async (updateId: string, notify: boolean) => {
+    const showReady = async (notify: boolean) => {
       if (cancelled) return;
+      setDownloadProgress(null);
       if (notify) await notifyAppUpdateReady();
       setReadyVisible(true);
-      void updateId;
     };
 
     const boot = async () => {
-      // Si ya había una update bajada de antes
       const existing = await getReadyUpdateId();
       if (existing) {
-        await showReady(existing, false);
+        await showReady(false);
+        return;
       }
 
-      const prep = await prepareAvailableUpdate();
+      const result = await checkAndPrepareUpdate('es', (p) => {
+        if (!cancelled) setDownloadProgress(p);
+      });
+
       if (cancelled) return;
-      if (prep.available && prep.updateId) {
-        await showReady(prep.updateId, Boolean(prep.shouldNotify));
+
+      if (result.status === 'readyToApply') {
+        await showReady(true);
+        return;
       }
+
+      // Limpia la barra si ya estaba al día o falló
+      setDownloadProgress(null);
     };
 
     void boot();
 
     const stop = startUpdateAvailabilityWatcher((updateId) => {
-      if (!cancelled) setReadyVisible(true);
+      if (!cancelled) {
+        setDownloadProgress(null);
+        setReadyVisible(true);
+      }
       void updateId;
     });
 
@@ -80,9 +95,31 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     }
   };
 
+  const pct = Math.round((downloadProgress?.progress ?? 0) * 100);
+  const showBar =
+    Boolean(downloadProgress) &&
+    !readyVisible &&
+    downloadProgress!.phase !== 'applying';
+
   return (
     <>
       {children}
+
+      {/* Barra superior mientras descarga (no tapa la app) */}
+      {showBar ? (
+        <View style={styles.barWrap} pointerEvents="none">
+          <View style={styles.barCard}>
+            <Text style={styles.barTitle}>Actualizando</Text>
+            <Text style={styles.barMsg}>
+              {downloadProgress?.message ?? 'Descargando…'}
+            </Text>
+            <View style={styles.track}>
+              <View style={[styles.fill, { width: `${Math.max(4, pct)}%` }]} />
+            </View>
+            <Text style={styles.barPct}>{pct}%</Text>
+          </View>
+        </View>
+      ) : null}
 
       <Modal
         visible={readyVisible}
@@ -103,6 +140,9 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
               <View style={styles.busy}>
                 <ActivityIndicator color="#3DDC97" />
                 <Text style={styles.busyText}>Instalando…</Text>
+                <View style={styles.track}>
+                  <View style={[styles.fill, { width: '100%' }]} />
+                </View>
               </View>
             ) : (
               <View style={styles.actions}>
@@ -122,6 +162,57 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  barWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    paddingTop: 48,
+    paddingHorizontal: 16,
+  },
+  barCard: {
+    backgroundColor: '#122E26',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#234A3E',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  barTitle: {
+    color: '#3DDC97',
+    fontWeight: '800',
+    fontSize: 13,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  barMsg: {
+    color: '#9BB5AB',
+    fontSize: 13,
+  },
+  track: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#234A3E',
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#3DDC97',
+  },
+  barPct: {
+    color: '#F2F7F4',
+    fontWeight: '700',
+    fontSize: 12,
+    alignSelf: 'flex-end',
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',

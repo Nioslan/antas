@@ -46,6 +46,48 @@ export function computeHealthScore(state: FinanceState): HealthScoreResult {
   const today = todayKey();
   const month = summarizePeriod(state.transactions, 'month', today);
   const week = summarizePeriod(state.transactions, 'week', today);
+  const hasActivity =
+    state.transactions.length > 0 ||
+    (state.goals?.length ?? 0) > 0 ||
+    (state.fixedExpenses?.length ?? 0) > 0 ||
+    Object.keys(state.categoryBudgets ?? {}).length > 0 ||
+    state.cashNow > 0;
+
+  // Sin datos todavía: score neutro (no asustar)
+  if (!hasActivity) {
+    return {
+      score: 70,
+      tone: 'ok',
+      label: 'Listo para empezar',
+      factors: [
+        {
+          id: 'savings',
+          label: 'Ahorro del mes',
+          score: 70,
+          tip: 'Cargá un ingreso y 2–3 gastos para medir el ahorro.',
+        },
+        {
+          id: 'budgets',
+          label: 'Presupuestos',
+          score: 70,
+          tip: 'Definí topes por categoría cuando quieras cuidarte el mes.',
+        },
+        {
+          id: 'cash',
+          label: 'Efectivo',
+          score: 70,
+          tip: 'Actualizá tu efectivo en Ahorro para un score más real.',
+        },
+        {
+          id: 'goals',
+          label: 'Metas',
+          score: 70,
+          tip: 'Creá una meta de ahorro para darle dirección al dinero.',
+        },
+      ],
+      headline: 'Cargá movimientos y el score se pone a trabajar.',
+    };
+  }
 
   // 1) Tasa de ahorro del mes
   const income = month.giro;

@@ -171,7 +171,7 @@ export default function BudgetsScreen() {
                   <View
                     style={[
                       styles.barFill,
-                      { width: `${bar}%` as `${number}%`, backgroundColor: color },
+                      { width: `${bar}%`, backgroundColor: color },
                     ]}
                   />
                 </View>

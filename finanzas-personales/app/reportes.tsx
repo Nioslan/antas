@@ -223,7 +223,7 @@ export default function ReportesScreen() {
                     style={[
                       styles.miniFill,
                       {
-                        width: `${Math.min(100, row.share)}%` as `${number}%`,
+                        width: `${Math.min(100, row.share)}%`,
                         backgroundColor: colors.expense,
                       },
                     ]}
@@ -253,7 +253,7 @@ export default function ReportesScreen() {
                     style={[
                       styles.miniFill,
                       {
-                        width: `${Math.min(100, row.share)}%` as `${number}%`,
+                        width: `${Math.min(100, row.share)}%`,
                         backgroundColor: colors.income,
                       },
                     ]}

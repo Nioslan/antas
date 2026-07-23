@@ -8,6 +8,9 @@ import { UpdateBootstrap } from '../src/components/UpdateBootstrap';
 import { AuthProvider } from '../src/context/AuthContext';
 import { FinanceProvider } from '../src/context/FinanceContext';
 import { SettingsProvider, useSettings } from '../src/context/SettingsContext';
+import { installWebFontSafety } from '../src/lib/webFontSafety';
+
+installWebFontSafety();
 
 class RootErrorBoundary extends Component<
   { children: ReactNode },

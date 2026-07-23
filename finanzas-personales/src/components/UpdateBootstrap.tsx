@@ -10,7 +10,8 @@ type Phase = 'checking' | 'downloading' | 'applying' | 'ready' | 'skip';
 
 /**
  * Pantalla de arranque: busca update, muestra progreso y reinicia.
- * Después, sigue revisando en silencio cada vez que vuelven a la app.
+ * Después, sigue revisando en silencio al volver a la app y cada tanto.
+ * Las OTA no borran movimientos, metas, Ahorro ni ajustes del teléfono.
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>('checking');
@@ -71,10 +72,10 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         setPhase('ready');
       } catch {
         if (cancelled) return;
-        // Un reintento rápido por fallas de red al abrir
-        if (attempt < 1) {
+        // Hasta 2 reintentos por fallas de red al abrir
+        if (attempt < 2) {
           setStatusText('Reintentando…');
-          await new Promise((r) => setTimeout(r, 800));
+          await new Promise((r) => setTimeout(r, 900 + attempt * 600));
           if (!cancelled) await run(attempt + 1);
           return;
         }
@@ -131,7 +132,8 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
       ) : null}
 
       <Text style={styles.hint}>
-        No cierres la app. Tus datos se mantienen en este teléfono.
+        No cierres la app. Tus datos se mantienen en este teléfono (no se
+        borran al actualizar).
       </Text>
     </View>
   );

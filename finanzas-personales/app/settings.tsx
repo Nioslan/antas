@@ -532,7 +532,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon={<Ionicons name="cloud-download-outline" size={20} color={colors.accent} />}
           title={checkingUpdate ? tr('checkingUpdates') : tr('checkUpdates')}
-          subtitle="Al abrir la app también se actualiza sola. No hace falta reinstalar."
+          subtitle="Se actualiza sola al abrir o volver a la app. Tus datos no se borran."
           onPress={checkUpdates}
           right={
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />

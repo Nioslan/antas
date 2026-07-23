@@ -133,6 +133,7 @@ export async function checkAndApplyUpdate(
 /**
  * Busca y aplica update en silencio (al volver a la app).
  * No tira errores al usuario si falla la red.
+ * Solo cambia el JS de la app: los datos del teléfono no se tocan.
  */
 export async function silentCheckAndApplyUpdate(): Promise<boolean> {
   if (!updatesAreSupported()) return false;
@@ -148,16 +149,22 @@ export async function silentCheckAndApplyUpdate(): Promise<boolean> {
   }
 }
 
-/** Revisa updates cuando la app vuelve al frente (máx. 1 vez cada 2 min). */
+/**
+ * Revisa updates:
+ * - al volver al frente (máx. 1 vez cada 90 s)
+ * - en segundo plano cada 15 min mientras la app está abierta
+ *
+ * OTA = solo código JS. AsyncStorage / datos locales no se borran.
+ */
 export function startUpdateOnResumeWatcher(): () => void {
   if (!updatesAreSupported()) return () => undefined;
 
   let lastCheck = 0;
   let running = false;
-  const MIN_MS = 2 * 60 * 1000;
+  const MIN_MS = 90 * 1000;
+  const PERIODIC_MS = 15 * 60 * 1000;
 
-  const onChange = (state: AppStateStatus) => {
-    if (state !== 'active') return;
+  const runCheck = () => {
     const now = Date.now();
     if (running || now - lastCheck < MIN_MS) return;
     lastCheck = now;
@@ -167,8 +174,22 @@ export function startUpdateOnResumeWatcher(): () => void {
     });
   };
 
+  const onChange = (state: AppStateStatus) => {
+    if (state === 'active') runCheck();
+  };
+
+  // Primera pasada un poco después de abrir (por si el bootstrap falló por red)
+  const bootTimer = setTimeout(runCheck, 12_000);
+  const periodic = setInterval(() => {
+    if (AppState.currentState === 'active') runCheck();
+  }, PERIODIC_MS);
+
   const sub = AppState.addEventListener('change', onChange);
-  return () => sub.remove();
+  return () => {
+    clearTimeout(bootTimer);
+    clearInterval(periodic);
+    sub.remove();
+  };
 }
 
 export function getUpdateMeta() {

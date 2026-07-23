@@ -16,20 +16,20 @@ import {
   Title,
 } from '../src/components/ui';
 import { useFinance } from '../src/context/FinanceContext';
-import { GASTO_CATEGORIES } from '../src/lib/categories';
+import { useSettings } from '../src/context/SettingsContext';
 import { FIXED_PRESETS } from '../src/types/fixed';
 import { colors, spacing } from '../src/theme';
-import type { GastoCategory } from '../src/types/finance';
 
 export default function AddFixedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { addFixedExpense } = useFinance();
+  const { gastoCategories } = useSettings();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDay, setDueDay] = useState('1');
-  const [category, setCategory] = useState<GastoCategory>('vivienda');
+  const [category, setCategory] = useState('vivienda');
 
   const onSave = () => {
     const value = Number(amount.replace(',', '.'));
@@ -100,7 +100,7 @@ export default function AddFixedScreen() {
 
         <Text style={styles.label}>Categoría</Text>
         <View style={styles.wrap}>
-          {GASTO_CATEGORIES.map((c) => (
+          {gastoCategories.map((c) => (
             <Chip
               key={c.id}
               label={c.label}
@@ -109,6 +109,11 @@ export default function AddFixedScreen() {
             />
           ))}
         </View>
+        <Pressable onPress={() => router.push('/manage-categories')}>
+          <Text style={styles.manageCatsText}>
+            Cambiar o agregar categorías
+          </Text>
+        </Pressable>
 
         <PrimaryButton label="Guardar fijo" onPress={onSave} />
       </KeyboardForm>
@@ -144,5 +149,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  manageCatsText: {
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 });

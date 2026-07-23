@@ -103,6 +103,14 @@ function RootNavigator() {
           options={{ presentation: 'card', headerShown: false }}
         />
         <Stack.Screen
+          name="manage-categories"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             presentation: 'card',

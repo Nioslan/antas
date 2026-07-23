@@ -39,15 +39,24 @@ export default function TransactionsScreen() {
           <Title>Movimientos</Title>
           <Subtitle>Tocá uno para ver día, hora y detalle.</Subtitle>
         </View>
-        <PrimaryButton
-          label="+ Semana"
-          onPress={() =>
-            router.push({
-              pathname: '/add-transaction',
-              params: { type: 'gasto' },
-            })
-          }
-        />
+        <View style={styles.headActions}>
+          <Pressable
+            style={styles.catsBtn}
+            onPress={() => router.push('/manage-categories')}
+          >
+            <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
+            <Text style={styles.catsBtnText}>Categorías</Text>
+          </Pressable>
+          <PrimaryButton
+            label="+ Semana"
+            onPress={() =>
+              router.push({
+                pathname: '/add-transaction',
+                params: { type: 'gasto' },
+              })
+            }
+          />
+        </View>
       </View>
 
       <View style={styles.filters}>
@@ -138,6 +147,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 12,
     marginBottom: spacing.md,
+  },
+  headActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  catsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  catsBtnText: {
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
   },
   filters: {
     flexDirection: 'row',

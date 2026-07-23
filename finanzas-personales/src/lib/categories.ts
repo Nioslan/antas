@@ -7,6 +7,41 @@ import type {
 } from '../types/finance';
 import { formatMoneyAmount, getActiveCurrency } from './moneyFormat';
 
+export type CategoryOption = {
+  id: string;
+  label: string;
+  /** Categoría creada por el usuario */
+  custom?: boolean;
+};
+
+export type GastoCategoryConfig = {
+  customGastoCategories: CategoryOption[];
+  gastoCategoryLabels: Record<string, string>;
+};
+
+const emptyGastoConfig: GastoCategoryConfig = {
+  customGastoCategories: [],
+  gastoCategoryLabels: {},
+};
+
+let activeGastoConfig: GastoCategoryConfig = emptyGastoConfig;
+
+export function configureGastoCategories(config: Partial<GastoCategoryConfig>): void {
+  activeGastoConfig = {
+    customGastoCategories: Array.isArray(config.customGastoCategories)
+      ? config.customGastoCategories
+      : activeGastoConfig.customGastoCategories,
+    gastoCategoryLabels:
+      config.gastoCategoryLabels && typeof config.gastoCategoryLabels === 'object'
+        ? config.gastoCategoryLabels
+        : activeGastoConfig.gastoCategoryLabels,
+  };
+}
+
+export function getGastoCategoryConfig(): GastoCategoryConfig {
+  return activeGastoConfig;
+}
+
 export const INVERSION_CATEGORIES: {
   id: InversionCategory;
   label: string;
@@ -36,13 +71,53 @@ export const GIRO_CATEGORIES: { id: GiroCategory; label: string }[] = [
   { id: 'otros', label: 'Otros' },
 ];
 
-export function getCategories(type: TransactionType) {
+const BUILTIN_GASTO_IDS = new Set(GASTO_CATEGORIES.map((c) => c.id));
+
+export function isBuiltinGastoCategory(id: string): boolean {
+  return BUILTIN_GASTO_IDS.has(id as GastoCategory);
+}
+
+export function slugifyCategoryLabel(label: string): string {
+  const base = label
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  return base || `cat_${Date.now().toString(36)}`;
+}
+
+export function resolveGastoCategories(
+  config: GastoCategoryConfig = activeGastoConfig
+): CategoryOption[] {
+  const labels = config.gastoCategoryLabels ?? {};
+  const builtins: CategoryOption[] = GASTO_CATEGORIES.map((c) => ({
+    id: c.id,
+    label: labels[c.id]?.trim() || c.label,
+  }));
+  const customs = (config.customGastoCategories ?? [])
+    .filter((c) => c?.id && c?.label)
+    .map((c) => ({
+      id: c.id,
+      label: labels[c.id]?.trim() || c.label,
+      custom: true as const,
+    }));
+  return [...builtins, ...customs];
+}
+
+export function getCategories(type: TransactionType): CategoryOption[] {
   if (type === 'inversion') return INVERSION_CATEGORIES;
-  if (type === 'gasto') return GASTO_CATEGORIES;
+  if (type === 'gasto') return resolveGastoCategories();
   return GIRO_CATEGORIES;
 }
 
 export function getCategoryLabel(type: TransactionType, category: string): string {
+  if (type === 'gasto') {
+    const override = activeGastoConfig.gastoCategoryLabels[category]?.trim();
+    if (override) return override;
+  }
   return getCategories(type).find((c) => c.id === category)?.label ?? category;
 }
 

@@ -1,4 +1,4 @@
-import type { GastoCategory } from '../types/finance';
+import type { GastoCategory } from './finance';
 
 export interface FixedExpense {
   id: string;
@@ -6,7 +6,8 @@ export interface FixedExpense {
   amount: number;
   /** Día del mes en que suele vencer/pagarse (1–31) */
   dueDay: number;
-  category: GastoCategory;
+  /** Id de categoría de gasto (builtin o custom) */
+  category: string;
   enabled: boolean;
   /** Última vez que se detectó o marcó como pagado */
   lastPaidDate?: string;

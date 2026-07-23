@@ -17,6 +17,7 @@ import {
   Title,
 } from '../src/components/ui';
 import { useFinance } from '../src/context/FinanceContext';
+import { useSettings } from '../src/context/SettingsContext';
 import {
   defaultCategory,
   getCategories,
@@ -52,6 +53,7 @@ export default function AddTransactionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string; week?: string }>();
   const { addTransaction } = useFinance();
+  const { gastoCategories } = useSettings();
 
   const initialType = parseType(params.type);
   const addType: TransactionType =
@@ -70,7 +72,8 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState('');
   const [time, setTime] = useState(nowTimeKey());
 
-  const categories = getCategories(type);
+  const categories =
+    type === 'gasto' ? gastoCategories : getCategories(type);
   const weekLabel = formatWeekLabel(weekAnchor);
   const { start, end } = getWeekRange(weekAnchor);
 
@@ -188,6 +191,16 @@ export default function AddTransactionScreen() {
             />
           ))}
         </View>
+        {type === 'gasto' ? (
+          <Pressable
+            onPress={() => router.push('/manage-categories')}
+            style={styles.manageCats}
+          >
+            <Text style={styles.manageCatsText}>
+              Cambiar o agregar categorías
+            </Text>
+          </Pressable>
+        ) : null}
 
         <Field
           label="Hora (HH:MM)"
@@ -315,5 +328,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  manageCats: {
+    marginTop: -4,
+    alignSelf: 'flex-start',
+  },
+  manageCatsText: {
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 });

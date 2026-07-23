@@ -24,7 +24,7 @@ export type GiroCategory =
   | 'ventas'
   | 'otros';
 
-export type Category = InversionCategory | GastoCategory | GiroCategory;
+export type Category = string;
 
 export interface Transaction {
   id: string;

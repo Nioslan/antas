@@ -36,7 +36,6 @@ import type {
   ChatMessage,
   DaySummary,
   FinanceState,
-  GastoCategory,
   Goal,
   Transaction,
   TransactionType,
@@ -81,7 +80,7 @@ interface FinanceContextValue {
     name: string;
     amount: number;
     dueDay: number;
-    category: GastoCategory;
+    category: string;
   }) => void;
   updateFixedExpense: (
     id: string,
@@ -426,7 +425,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       name: string;
       amount: number;
       dueDay: number;
-      category: GastoCategory;
+      category: string;
     }) => {
       const now = new Date().toISOString();
       const item: FixedExpense = {

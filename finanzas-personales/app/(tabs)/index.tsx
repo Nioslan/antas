@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,8 +35,16 @@ import {
   summarizePeriod,
   type Period,
 } from '../../src/lib/periods';
+import { analyzeAllocation } from '../../src/lib/allocation';
 import { buildBudgetRows, budgetTotals } from '../../src/lib/budgets';
 import { computeHealthScore } from '../../src/lib/healthScore';
+import {
+  notifyWeeklyReportNow,
+  scheduleWeeklyReportNotification,
+} from '../../src/lib/notifications';
+import { projectMonthEnd } from '../../src/lib/projection';
+import { buildSmartAlerts } from '../../src/lib/smartAlerts';
+import { buildWeeklyReport } from '../../src/lib/weeklyReport';
 import { useTheme } from '../../src/context/SettingsContext';
 import { spacing, type ThemeColors } from '../../src/theme';
 
@@ -46,7 +55,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { ready, state } = useFinance();
+  const { ready, state, dismissAlert, markWeeklyReportGenerated } = useFinance();
 
   const [period, setPeriod] = useState<Period>('week');
   const [anchor, setAnchor] = useState(todayKey());
@@ -68,6 +77,9 @@ export default function HomeScreen() {
   );
 
   const health = useMemo(() => computeHealthScore(state), [state]);
+  const projection = useMemo(() => projectMonthEnd(state), [state]);
+  const allocation = useMemo(() => analyzeAllocation(state), [state]);
+  const alerts = useMemo(() => buildSmartAlerts(state), [state]);
   const budgetAlert = useMemo(() => {
     const totals = budgetTotals(buildBudgetRows(state, monthKey()));
     if (totals.overCount > 0) return `${totals.overCount} al límite`;
@@ -82,6 +94,16 @@ export default function HomeScreen() {
         : health.tone === 'warn'
           ? colors.warning
           : colors.expense;
+
+  const runWeeklyReport = async () => {
+    const report = buildWeeklyReport(state);
+    markWeeklyReportGenerated();
+    await scheduleWeeklyReportNotification(
+      `Libre ${formatMoney(report.weekLibre)}. Abrí la app para el detalle.`
+    );
+    await notifyWeeklyReportNow(report.title, report.body);
+    Alert.alert(report.title, report.body);
+  };
 
   const label = formatPeriodLabel(period, anchor);
   const canAdd = period === 'week' || period === 'day';
@@ -226,6 +248,99 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>Reportes</Text>
           </Pressable>
         </View>
+
+        {alerts.length > 0 ? (
+          <View style={{ gap: 8 }}>
+            {alerts.slice(0, 3).map((a) => (
+              <Pressable
+                key={a.id}
+                style={[
+                  styles.alertCard,
+                  {
+                    borderColor:
+                      a.severity === 'danger'
+                        ? colors.expense
+                        : a.severity === 'warn'
+                          ? colors.warning
+                          : colors.border,
+                  },
+                ]}
+                onPress={() => dismissAlert(a.id)}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.alertTitle}>{a.title}</Text>
+                  <Text style={styles.alertBody}>{a.body}</Text>
+                  <Text style={styles.alertDismiss}>Tocá para ocultar</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        <Pressable onPress={() => router.push('/reportes')}>
+          <Card style={styles.projCard}>
+            <Text style={styles.projLabel}>Proyección a fin de mes</Text>
+            <Text
+              style={[
+                styles.projValue,
+                {
+                  color:
+                    projection.projectedLibre >= 0
+                      ? colors.income
+                      : colors.expense,
+                },
+              ]}
+            >
+              {formatMoney(projection.projectedLibre)}
+            </Text>
+            <Text style={styles.projHint}>{projection.tip}</Text>
+          </Card>
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/hogar')}>
+          <Card style={styles.allocCard}>
+            <Text style={styles.projLabel}>
+              Regla {Math.round(allocation.rule.needs)}/
+              {Math.round(allocation.rule.wants)}/
+              {Math.round(allocation.rule.savings)}
+            </Text>
+            <Text style={styles.allocRow}>
+              Necesidades {allocation.needs.pct}% · Gustos {allocation.wants.pct}%
+              · Ahorro {allocation.savings.pct}%
+            </Text>
+            <Text style={styles.projHint}>{allocation.tip}</Text>
+          </Card>
+        </Pressable>
+
+        <View style={styles.toolsGrid}>
+          {(
+            [
+              { href: '/envelopes', icon: 'wallet-outline' as const, label: 'Sobres' },
+              { href: '/deudas', icon: 'card-outline' as const, label: 'Deudas' },
+              {
+                href: '/calendario',
+                icon: 'calendar-outline' as const,
+                label: 'Calendario',
+              },
+              { href: '/reto', icon: 'flame-outline' as const, label: 'Reto' },
+            ] as const
+          ).map((t) => (
+            <Pressable
+              key={t.href}
+              style={styles.toolBtn}
+              onPress={() => router.push(t.href)}
+            >
+              <Ionicons name={t.icon} size={18} color={colors.accent} />
+              <Text style={styles.toolText}>{t.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <PrimaryButton
+          label="Informe semanal"
+          tone="muted"
+          onPress={() => void runWeeklyReport()}
+        />
 
         <View style={styles.grid}>
           <Card style={styles.gridCard}>
@@ -494,6 +609,40 @@ function createStyles(colors: ThemeColors) {
     fontWeight: '700',
     fontSize: 11,
   },
+  alertCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  alertTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
+  alertBody: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  alertDismiss: { color: colors.textDim, fontSize: 11, marginTop: 4 },
+  projCard: { gap: 4 },
+  allocCard: { gap: 4 },
+  projLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  projValue: { fontWeight: '800', fontSize: 28, letterSpacing: -0.5 },
+  projHint: { color: colors.textDim, fontSize: 12, lineHeight: 17 },
+  allocRow: { color: colors.text, fontWeight: '600', fontSize: 14 },
+  toolsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  toolBtn: {
+    width: '47%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.bgElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  toolText: { color: colors.text, fontWeight: '600', fontSize: 13 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

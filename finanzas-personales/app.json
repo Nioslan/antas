@@ -41,7 +41,8 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -64,6 +65,12 @@
         {
           "icon": "./assets/icon.png",
           "color": "#E24B3C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Antas usa tus fotos solo para adjuntar tickets de gastos en el teléfono."
         }
       ]
     ],

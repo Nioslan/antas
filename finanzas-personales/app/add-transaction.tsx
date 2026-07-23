@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -54,7 +56,7 @@ export default function AddTransactionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string; week?: string }>();
-  const { addTransaction } = useFinance();
+  const { addTransaction, state } = useFinance();
   const { gastoCategories, giroCategories } = useSettings();
 
   const initialType = parseType(params.type);
@@ -73,8 +75,13 @@ export default function AddTransactionScreen() {
   const [category, setCategory] = useState<Category>(defaultCategory(addType));
   const [note, setNote] = useState('');
   const [time, setTime] = useState(nowTimeKey());
+  const [receiptUri, setReceiptUri] = useState<string | undefined>();
+  const [memberId, setMemberId] = useState<string | undefined>();
+  const [envelopeId, setEnvelopeId] = useState<string | undefined>();
 
   const categories = type === 'gasto' ? gastoCategories : giroCategories;
+  const members = state.householdMembers ?? [];
+  const envelopes = state.envelopes ?? [];
   const time12 = useMemo(() => hhmmToTime12(time), [time]);
   const weekLabel = formatWeekLabel(weekAnchor);
   const { start, end } = getWeekRange(weekAnchor);
@@ -114,8 +121,47 @@ export default function AddTransactionScreen() {
       note,
       date,
       time: time.trim() || nowTimeKey(),
+      receiptUri,
+      memberId,
+      envelopeId: type === 'gasto' ? envelopeId : undefined,
     });
     router.back();
+  };
+
+  const pickReceipt = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Permiso',
+          'Necesitamos acceso a tus fotos para adjuntar el ticket.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.35,
+        base64: true,
+        allowsEditing: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.base64) {
+        const uri = `data:image/jpeg;base64,${asset.base64}`;
+        if (uri.length > 900_000) {
+          Alert.alert(
+            'Foto grande',
+            'Elegí una imagen más chica o recortá el ticket.'
+          );
+          return;
+        }
+        setReceiptUri(uri);
+      } else if (asset.uri) {
+        setReceiptUri(asset.uri);
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la galería.');
+    }
   };
 
   return (
@@ -265,6 +311,68 @@ export default function AddTransactionScreen() {
           returnKeyType="done"
         />
 
+        {type === 'gasto' && envelopes.length > 0 ? (
+          <View style={{ gap: 8 }}>
+            <Text style={styles.hint}>Sobre (opcional)</Text>
+            <View style={styles.wrap}>
+              <Chip
+                label="Ninguno"
+                active={!envelopeId}
+                onPress={() => setEnvelopeId(undefined)}
+              />
+              {envelopes.map((e) => (
+                <Chip
+                  key={e.id}
+                  label={e.name}
+                  active={envelopeId === e.id}
+                  onPress={() => setEnvelopeId(e.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {members.length > 0 ? (
+          <View style={{ gap: 8 }}>
+            <Text style={styles.hint}>Quién (hogar)</Text>
+            <View style={styles.wrap}>
+              <Chip
+                label="Nadie"
+                active={!memberId}
+                onPress={() => setMemberId(undefined)}
+              />
+              {members.map((m) => (
+                <Chip
+                  key={m.id}
+                  label={m.name}
+                  active={memberId === m.id}
+                  onPress={() => setMemberId(m.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={{ gap: 8 }}>
+          <PrimaryButton
+            label={receiptUri ? 'Cambiar foto del ticket' : 'Adjuntar ticket'}
+            tone="muted"
+            onPress={() => void pickReceipt()}
+          />
+          {receiptUri ? (
+            <View style={{ gap: 8 }}>
+              <Image
+                source={{ uri: receiptUri }}
+                style={styles.receipt}
+                resizeMode="cover"
+              />
+              <Pressable onPress={() => setReceiptUri(undefined)}>
+                <Text style={styles.cancel}>Quitar foto</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
         <PrimaryButton
           label="Guardar"
           onPress={onSave}
@@ -409,5 +517,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
     fontSize: 18,
+  },
+  receipt: {
+    width: '100%',
+    height: 160,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgElevated,
   },
 });

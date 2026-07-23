@@ -1,5 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, PrimaryButton, Screen, Title } from '../../src/components/ui';
@@ -86,7 +94,35 @@ export default function TransactionDetailScreen() {
           />
           <DetailRow label="Tipo" value={typeLabel(tx.type)} />
           <DetailRow label="Fecha (AAAA-MM-DD)" value={tx.date} />
+          {tx.memberId ? (
+            <DetailRow
+              label="Miembro"
+              value={
+                state.householdMembers?.find((m) => m.id === tx.memberId)?.name ??
+                '—'
+              }
+            />
+          ) : null}
+          {tx.envelopeId ? (
+            <DetailRow
+              label="Sobre"
+              value={
+                state.envelopes?.find((e) => e.id === tx.envelopeId)?.name ?? '—'
+              }
+            />
+          ) : null}
         </Card>
+
+        {tx.receiptUri ? (
+          <Card>
+            <Text style={styles.label}>Ticket</Text>
+            <Image
+              source={{ uri: tx.receiptUri }}
+              style={styles.receipt}
+              resizeMode="contain"
+            />
+          </Card>
+        ) : null}
 
         <PrimaryButton
           label="Eliminar movimiento"
@@ -167,5 +203,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginVertical: 16,
     lineHeight: 22,
+  },
+  receipt: {
+    width: '100%',
+    height: 220,
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: colors.bgElevated,
   },
 });

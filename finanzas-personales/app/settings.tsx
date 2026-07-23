@@ -526,6 +526,48 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
           }
         />
+        <SettingsRow
+          icon={<Ionicons name="wallet-outline" size={20} color={colors.accent} />}
+          title="Sobres"
+          subtitle="Plata asignada por categoría"
+          onPress={() => router.push('/envelopes')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="card-outline" size={20} color={colors.accent} />}
+          title="Deudas y cuotas"
+          onPress={() => router.push('/deudas')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="calendar-outline" size={20} color={colors.accent} />}
+          title="Calendario de plata"
+          onPress={() => router.push('/calendario')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="flame-outline" size={20} color={colors.accent} />}
+          title="Reto de ahorro"
+          onPress={() => router.push('/reto')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="people-outline" size={20} color={colors.accent} />}
+          title="Hogar y regla %"
+          subtitle="Miembros locales y 50/30/20"
+          onPress={() => router.push('/hogar')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
 
         {/* Datos */}
         <Text style={[styles.section, { color: colors.text }]}>

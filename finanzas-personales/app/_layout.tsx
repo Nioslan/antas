@@ -130,6 +130,46 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="envelopes"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="deudas"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="calendario"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="reto"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="hogar"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             presentation: 'card',

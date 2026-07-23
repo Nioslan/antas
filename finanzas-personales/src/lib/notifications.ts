@@ -370,6 +370,82 @@ export async function notifyDueBillsNow(
   return { sent: true, count: dueSoon.length };
 }
 
+const WEEKLY_CHANNEL_ID = 'weekly-report';
+const WEEKLY_NOTIF_ID = 'weekly-finance-report';
+
+async function ensureWeeklyChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(WEEKLY_CHANNEL_ID, {
+    name: 'Informe semanal',
+    description: 'Resumen semanal de tus finanzas',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    enableVibrate: true,
+    showBadge: false,
+    sound: 'default',
+  });
+}
+
+/** Agenda el informe semanal (domingo 18:00). En web no hace nada. */
+export async function scheduleWeeklyReportNotification(body: string): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return false;
+    await ensureWeeklyChannel();
+    await Notifications.cancelScheduledNotificationAsync(WEEKLY_NOTIF_ID).catch(() => {});
+
+    const when = new Date();
+    const day = when.getDay();
+    let add = (7 - day) % 7;
+    const triggerDate = new Date(when);
+    triggerDate.setDate(when.getDate() + add);
+    triggerDate.setHours(18, 0, 0, 0);
+    if (triggerDate.getTime() <= Date.now()) {
+      triggerDate.setDate(triggerDate.getDate() + 7);
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: WEEKLY_NOTIF_ID,
+      content: {
+        title: 'Tu informe semanal',
+        body: body.slice(0, 180),
+        data: { kind: 'weekly-report' },
+        sound: true,
+        ...(Platform.OS === 'android' ? { channelId: WEEKLY_CHANNEL_ID } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function notifyWeeklyReportNow(title: string, body: string): Promise<boolean> {
+  try {
+    if (Platform.OS === 'web') return false;
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return false;
+    await ensureWeeklyChannel();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body: body.slice(0, 220),
+        data: { kind: 'weekly-report' },
+        sound: true,
+        ...(Platform.OS === 'android' ? { channelId: WEEKLY_CHANNEL_ID } : {}),
+      },
+      trigger: null,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Notificación de prueba inmediata + vibración (para que el usuario verifique). */
 export async function sendTestBillNotification(): Promise<boolean> {
   const ok = await ensureNotificationPermissions();

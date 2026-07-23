@@ -32,15 +32,23 @@ import { summarizeCapital, summarizeDay } from '../lib/summary';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
 import type {
+  AllocationRule,
   CapitalSummary,
   Category,
   ChatMessage,
   DaySummary,
+  Debt,
+  DebtKind,
+  Envelope,
   FinanceState,
   Goal,
+  HouseholdMember,
+  SavingsChallenge,
+  ChallengeType,
   Transaction,
   TransactionType,
 } from '../types/finance';
+import { DEFAULT_ALLOCATION } from '../types/finance';
 import type { FixedExpense } from '../types/fixed';
 
 const SYNC_DEBOUNCE_MS = 900;
@@ -67,8 +75,58 @@ interface FinanceContextValue {
     date?: string;
     time?: string;
     recovered?: number;
+    receiptUri?: string;
+    memberId?: string;
+    envelopeId?: string;
   }) => void;
   removeTransaction: (id: string) => void;
+  addEnvelope: (input: { name: string; allocated: number; category?: string }) => void;
+  updateEnvelope: (
+    id: string,
+    patch: Partial<Pick<Envelope, 'name' | 'allocated' | 'category'>>
+  ) => void;
+  removeEnvelope: (id: string) => void;
+  addDebt: (input: {
+    name: string;
+    kind: DebtKind;
+    totalAmount: number;
+    remaining?: number;
+    installmentAmount?: number;
+    dueDay?: number;
+    note?: string;
+  }) => void;
+  updateDebt: (
+    id: string,
+    patch: Partial<
+      Pick<
+        Debt,
+        | 'name'
+        | 'kind'
+        | 'totalAmount'
+        | 'remaining'
+        | 'installmentAmount'
+        | 'dueDay'
+        | 'note'
+      >
+    >
+  ) => void;
+  payDebt: (id: string, amount: number) => void;
+  removeDebt: (id: string) => void;
+  addChallenge: (input: {
+    type: ChallengeType;
+    title: string;
+    targetAmount: number;
+    startDate: string;
+    endDate: string;
+    baselineSpend?: number;
+  }) => void;
+  setChallengeActive: (id: string, active: boolean) => void;
+  removeChallenge: (id: string) => void;
+  setAllocationRule: (rule: AllocationRule) => void;
+  addHouseholdMember: (name: string) => void;
+  removeHouseholdMember: (id: string) => void;
+  dismissAlert: (id: string) => void;
+  markWeeklyReportGenerated: () => void;
   addGoal: (input: {
     name: string;
     targetAmount: number;
@@ -125,6 +183,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     cashNow: 0,
     fixedExpenses: [],
     categoryBudgets: {},
+    envelopes: [],
+    debts: [],
+    challenges: [],
+    allocationRule: { ...DEFAULT_ALLOCATION },
+    householdMembers: [],
+    dismissedAlertIds: [],
     updatedAt: new Date(0).toISOString(),
   });
   const [chatting, setChatting] = useState(false);
@@ -338,6 +402,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       date?: string;
       time?: string;
       recovered?: number;
+      receiptUri?: string;
+      memberId?: string;
+      envelopeId?: string;
     }) => {
       const amount = Math.abs(input.amount);
       const now = new Date();
@@ -364,6 +431,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           input.type === 'giro' && input.recovered != null
             ? Math.min(Math.max(input.recovered, 0), amount)
             : undefined,
+        receiptUri: input.receiptUri,
+        memberId: input.memberId,
+        envelopeId: input.envelopeId,
       };
       setState((prev) => ({
         ...prev,
@@ -675,6 +745,239 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const addEnvelope = useCallback(
+    (input: { name: string; allocated: number; category?: string }) => {
+      const name = input.name.trim();
+      if (!name) return;
+      const env: Envelope = {
+        id: uid('env'),
+        name,
+        allocated: Math.max(0, Number(input.allocated) || 0),
+        category: input.category,
+        createdAt: new Date().toISOString(),
+      };
+      setState((prev) => ({
+        ...prev,
+        envelopes: [env, ...(prev.envelopes ?? [])],
+      }));
+    },
+    []
+  );
+
+  const updateEnvelope = useCallback(
+    (
+      id: string,
+      patch: Partial<Pick<Envelope, 'name' | 'allocated' | 'category'>>
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        envelopes: (prev.envelopes ?? []).map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                ...patch,
+                name: patch.name != null ? patch.name.trim() || e.name : e.name,
+                allocated:
+                  patch.allocated != null
+                    ? Math.max(0, Number(patch.allocated) || 0)
+                    : e.allocated,
+              }
+            : e
+        ),
+      }));
+    },
+    []
+  );
+
+  const removeEnvelope = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      envelopes: (prev.envelopes ?? []).filter((e) => e.id !== id),
+    }));
+  }, []);
+
+  const addDebt = useCallback(
+    (input: {
+      name: string;
+      kind: DebtKind;
+      totalAmount: number;
+      remaining?: number;
+      installmentAmount?: number;
+      dueDay?: number;
+      note?: string;
+    }) => {
+      const total = Math.max(0, Number(input.totalAmount) || 0);
+      const debt: Debt = {
+        id: uid('debt'),
+        name: input.name.trim() || 'Deuda',
+        kind: input.kind,
+        totalAmount: total,
+        remaining: Math.max(0, Number(input.remaining ?? total) || 0),
+        installmentAmount:
+          input.installmentAmount != null && input.installmentAmount > 0
+            ? Number(input.installmentAmount)
+            : undefined,
+        dueDay: input.dueDay,
+        note: input.note?.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setState((prev) => ({
+        ...prev,
+        debts: [debt, ...(prev.debts ?? [])],
+      }));
+    },
+    []
+  );
+
+  const updateDebt = useCallback(
+    (
+      id: string,
+      patch: Partial<
+        Pick<
+          Debt,
+          | 'name'
+          | 'kind'
+          | 'totalAmount'
+          | 'remaining'
+          | 'installmentAmount'
+          | 'dueDay'
+          | 'note'
+        >
+      >
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        debts: (prev.debts ?? []).map((d) =>
+          d.id === id
+            ? { ...d, ...patch, updatedAt: new Date().toISOString() }
+            : d
+        ),
+      }));
+    },
+    []
+  );
+
+  const payDebt = useCallback((id: string, amount: number) => {
+    const pay = Math.max(0, Number(amount) || 0);
+    if (pay <= 0) return;
+    setState((prev) => ({
+      ...prev,
+      debts: (prev.debts ?? []).map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              remaining: Math.max(0, Math.round((d.remaining - pay) * 100) / 100),
+              updatedAt: new Date().toISOString(),
+            }
+          : d
+      ),
+    }));
+  }, []);
+
+  const removeDebt = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      debts: (prev.debts ?? []).filter((d) => d.id !== id),
+    }));
+  }, []);
+
+  const addChallenge = useCallback(
+    (input: {
+      type: ChallengeType;
+      title: string;
+      targetAmount: number;
+      startDate: string;
+      endDate: string;
+      baselineSpend?: number;
+    }) => {
+      const challenge: SavingsChallenge = {
+        id: uid('ch'),
+        type: input.type,
+        title: input.title.trim() || 'Reto',
+        targetAmount: Math.max(0, Number(input.targetAmount) || 0),
+        startDate: input.startDate,
+        endDate: input.endDate,
+        baselineSpend: input.baselineSpend,
+        active: true,
+        createdAt: new Date().toISOString(),
+      };
+      setState((prev) => ({
+        ...prev,
+        challenges: [challenge, ...(prev.challenges ?? [])],
+      }));
+    },
+    []
+  );
+
+  const setChallengeActive = useCallback((id: string, active: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      challenges: (prev.challenges ?? []).map((c) =>
+        c.id === id ? { ...c, active } : c
+      ),
+    }));
+  }, []);
+
+  const removeChallenge = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      challenges: (prev.challenges ?? []).filter((c) => c.id !== id),
+    }));
+  }, []);
+
+  const setAllocationRule = useCallback((rule: AllocationRule) => {
+    const needs = Math.max(0, Number(rule.needs) || 0);
+    const wants = Math.max(0, Number(rule.wants) || 0);
+    const savings = Math.max(0, Number(rule.savings) || 0);
+    const sum = needs + wants + savings || 100;
+    setState((prev) => ({
+      ...prev,
+      allocationRule: {
+        needs: Math.round((needs / sum) * 1000) / 10,
+        wants: Math.round((wants / sum) * 1000) / 10,
+        savings: Math.round((savings / sum) * 1000) / 10,
+      },
+    }));
+  }, []);
+
+  const addHouseholdMember = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const member: HouseholdMember = {
+      id: uid('mem'),
+      name: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+    setState((prev) => ({
+      ...prev,
+      householdMembers: [...(prev.householdMembers ?? []), member],
+    }));
+  }, []);
+
+  const removeHouseholdMember = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      householdMembers: (prev.householdMembers ?? []).filter((m) => m.id !== id),
+    }));
+  }, []);
+
+  const dismissAlert = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      dismissedAlertIds: [...new Set([...(prev.dismissedAlertIds ?? []), id])].slice(
+        -80
+      ),
+    }));
+  }, []);
+
+  const markWeeklyReportGenerated = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      lastWeeklyReportAt: new Date().toISOString(),
+    }));
+  }, []);
+
   const importDataJson = useCallback(async (raw: string) => {
     try {
       const next = parseFinanceStateJson(raw);
@@ -741,6 +1044,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     importDataJson,
     setCategoryBudget,
     removeCategoryBudget,
+    addEnvelope,
+    updateEnvelope,
+    removeEnvelope,
+    addDebt,
+    updateDebt,
+    payDebt,
+    removeDebt,
+    addChallenge,
+    setChallengeActive,
+    removeChallenge,
+    setAllocationRule,
+    addHouseholdMember,
+    removeHouseholdMember,
+    dismissAlert,
+    markWeeklyReportGenerated,
     chatting,
     syncStatus,
     syncError,

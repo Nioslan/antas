@@ -284,16 +284,34 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!settingsReady) return;
-    loadFinanceState().then((loaded) => {
-      const { state: withBonus } = settings.saturdayBonusEnabled
-        ? applySaturdayBonusIfDue(loaded, settings.saturdayBonusPercent)
-        : { state: loaded };
-      setState(withBonus);
-      setReady(true);
-      if (settings.notificationsEnabled) {
-        void scheduleFixedReminders(withBonus.fixedExpenses);
-      }
-    });
+    let cancelled = false;
+    const failOpen = setTimeout(() => {
+      if (!cancelled) setReady(true);
+    }, 6000);
+
+    loadFinanceState()
+      .then((loaded) => {
+        if (cancelled) return;
+        const { state: withBonus } = settings.saturdayBonusEnabled
+          ? applySaturdayBonusIfDue(loaded, settings.saturdayBonusPercent)
+          : { state: loaded };
+        setState(withBonus);
+        setReady(true);
+        if (settings.notificationsEnabled) {
+          void scheduleFixedReminders(withBonus.fixedExpenses);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setReady(true);
+      })
+      .finally(() => {
+        clearTimeout(failOpen);
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(failOpen);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsReady]);
 

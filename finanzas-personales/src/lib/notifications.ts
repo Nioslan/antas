@@ -1,49 +1,83 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import { Platform, Vibration } from 'react-native';
+import { Platform } from 'react-native';
 import type { FixedExpense } from '../types/fixed';
 import { formatMoney, todayKey } from './categories';
-import { daysUntil, dueDateInMonth, reminderDate } from './fixedExpenses';
+import {
+  countUpcomingBills,
+  listDueSoonBills,
+  vibrateForBillAlert,
+  VIBRATE_PATTERN,
+} from './fixedBills';
+import { dueDateInMonth, reminderDate } from './fixedExpenses';
+
+export { countUpcomingBills, listDueSoonBills, vibrateForBillAlert };
+
+type NotificationsModule = typeof import('expo-notifications');
 
 const CHANNEL_ID = 'fixed-bills';
 const UPDATE_CHANNEL_ID = 'app-updates';
 const DIGEST_KEY = 'finanzas_last_due_digest';
-/** Patrón fuerte: vibra – pausa – vibra – pausa – vibra larga */
-const VIBRATE_PATTERN = [0, 400, 200, 400, 200, 700];
 const UPDATE_VIBRATE = [0, 250, 150, 250];
+const WEEKLY_CHANNEL_ID = 'weekly-report';
+const WEEKLY_NOTIF_ID = 'weekly-finance-report';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+let notificationsModule: NotificationsModule | null = null;
+let handlerConfigured = false;
 
-export async function ensureNotificationPermissions(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
-  if (
-    current.granted ||
-    current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  ) {
-    return true;
+/** Carga expo-notifications solo cuando hace falta (no en el arranque). */
+async function getNotifications(): Promise<NotificationsModule | null> {
+  try {
+    if (!notificationsModule) {
+      notificationsModule = await import('expo-notifications');
+    }
+    if (!handlerConfigured) {
+      notificationsModule.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+      handlerConfigured = true;
+    }
+    return notificationsModule;
+  } catch {
+    return null;
   }
-  const asked = await Notifications.requestPermissionsAsync({
-    ios: {
-      allowAlert: true,
-      allowBadge: true,
-      allowSound: true,
-    },
-    android: {},
-  });
-  return (
-    asked.granted ||
-    asked.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  );
 }
 
-async function ensureAndroidChannel(): Promise<void> {
+export async function ensureNotificationPermissions(): Promise<boolean> {
+  try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
+    const current = await Notifications.getPermissionsAsync();
+    if (
+      current.granted ||
+      current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+    ) {
+      return true;
+    }
+    const asked = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+      android: {},
+    });
+    return (
+      asked.granted ||
+      asked.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function ensureAndroidChannel(
+  Notifications: NotificationsModule
+): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
     name: 'Gastos fijos',
@@ -58,7 +92,9 @@ async function ensureAndroidChannel(): Promise<void> {
   });
 }
 
-async function ensureUpdateChannel(): Promise<void> {
+async function ensureUpdateChannel(
+  Notifications: NotificationsModule
+): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(UPDATE_CHANNEL_ID, {
     name: 'Actualizaciones de la app',
@@ -73,12 +109,28 @@ async function ensureUpdateChannel(): Promise<void> {
   });
 }
 
+async function ensureWeeklyChannel(
+  Notifications: NotificationsModule
+): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(WEEKLY_CHANNEL_ID, {
+    name: 'Informe semanal',
+    description: 'Resumen semanal de tus finanzas',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    enableVibrate: true,
+    showBadge: false,
+    sound: 'default',
+  });
+}
+
 /** Aviso local: hay una actualización lista; el usuario decide cuándo instalar. */
 export async function notifyAppUpdateReady(): Promise<void> {
   try {
     const ok = await ensureNotificationPermissions();
     if (!ok) return;
-    await ensureUpdateChannel();
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
+    await ensureUpdateChannel(Notifications);
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Actualización lista',
@@ -101,72 +153,15 @@ function parseLocalDate(iso: string, hour = 9, minute = 0): Date {
   return new Date(y, m - 1, d, hour, minute, 0, 0);
 }
 
-function isStillUnpaid(bill: FixedExpense, dueIso: string): boolean {
-  if (!bill.lastPaidDate) return true;
-  return bill.lastPaidDate < dueIso;
-}
-
-function nextDueFrom(dueDay: number, fromIso: string): string {
-  const [y, m, d] = fromIso.split('-').map(Number);
-  const thisMonth = dueDateInMonth(dueDay, y, m - 1);
-  const dueDayNum = Number(thisMonth.slice(8, 10));
-  if (d <= dueDayNum) return thisMonth;
-  const nextMonth = new Date(y, m, 1);
-  return dueDateInMonth(
-    dueDay,
-    nextMonth.getFullYear(),
-    nextMonth.getMonth()
-  );
-}
-
-/** Lista de fijos pendientes en la ventana de avisos (incluye hoy y vencidos recientes). */
-export function listDueSoonBills(
-  fixed: FixedExpense[],
-  fromIso = todayKey(),
-  windowDays = 5
-): Array<{ bill: FixedExpense; due: string; days: number }> {
-  return fixed
-    .filter((bill) => bill.enabled)
-    .map((bill) => {
-      const due = nextDueFrom(bill.dueDay, fromIso);
-      const days = daysUntil(due, fromIso);
-      return { bill, due, days };
-    })
-    .filter(({ bill, due, days }) => {
-      if (days < 0 || days > windowDays) return false;
-      return isStillUnpaid(bill, due);
-    })
-    .sort((a, b) => a.days - b.days);
-}
-
-/** Cuenta fijos pendientes en los próximos 5 días (incluye hoy) para el badge rojo. */
-export function countUpcomingBills(
-  fixed: FixedExpense[],
-  fromIso = todayKey()
-): number {
-  return listDueSoonBills(fixed, fromIso, 5).length;
-}
-
 /** Actualiza el numerito rojo del icono de la app. */
 export async function refreshAppBadge(fixed: FixedExpense[]): Promise<void> {
   try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
     const count = countUpcomingBills(fixed);
     await Notifications.setBadgeCountAsync(count);
   } catch {
     // Algunos launchers Android no soportan badge
-  }
-}
-
-/** Vibra el teléfono (útil al mostrar avisos en la app). */
-export function vibrateForBillAlert(): void {
-  try {
-    if (Platform.OS === 'android') {
-      Vibration.vibrate(VIBRATE_PATTERN);
-    } else {
-      Vibration.vibrate([400, 200, 400]);
-    }
-  } catch {
-    // sin vibrador / permiso
   }
 }
 
@@ -207,7 +202,13 @@ function titleBody(
   }
 }
 
+function isStillUnpaid(bill: FixedExpense, dueIso: string): boolean {
+  if (!bill.lastPaidDate) return true;
+  return bill.lastPaidDate < dueIso;
+}
+
 async function scheduleOne(
+  Notifications: NotificationsModule,
   bill: FixedExpense,
   due: string,
   whenIso: string,
@@ -229,7 +230,9 @@ async function scheduleOne(
       sound: true,
       priority: Notifications.AndroidNotificationPriority.MAX,
       vibrate: VIBRATE_PATTERN,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, color: '#E24B3C' } : {}),
+      ...(Platform.OS === 'android'
+        ? { channelId: CHANNEL_ID, color: '#E24B3C' }
+        : {}),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -243,6 +246,8 @@ async function scheduleOne(
 /** Apaga todos los avisos programados y limpia el badge. */
 export async function cancelFixedReminders(): Promise<void> {
   try {
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
     await Notifications.cancelAllScheduledNotificationsAsync();
     await Notifications.setBadgeCountAsync(0);
   } catch {
@@ -257,43 +262,50 @@ export async function cancelFixedReminders(): Promise<void> {
 export async function scheduleFixedReminders(
   fixed: FixedExpense[]
 ): Promise<void> {
-  const ok = await ensureNotificationPermissions();
-  if (!ok) {
-    await refreshAppBadge([]);
-    return;
-  }
-
-  await ensureAndroidChannel();
-  await Notifications.cancelAllScheduledNotificationsAsync();
-
-  const enabled = fixed.filter((f) => f.enabled);
-  const base = new Date();
-
-  for (const bill of enabled) {
-    for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
-      const cursor = new Date(
-        base.getFullYear(),
-        base.getMonth() + monthOffset,
-        1
-      );
-      const due = dueDateInMonth(
-        bill.dueDay,
-        cursor.getFullYear(),
-        cursor.getMonth()
-      );
-      const fiveBefore = reminderDate(due, 5);
-      const threeBefore = reminderDate(due, 3);
-      const oneBefore = reminderDate(due, 1);
-
-      await scheduleOne(bill, due, fiveBefore, 'before5', 9);
-      await scheduleOne(bill, due, threeBefore, 'before3', 9);
-      await scheduleOne(bill, due, oneBefore, 'before1', 9);
-      await scheduleOne(bill, due, due, 'due', 8);
-      await scheduleOne(bill, due, due, 'dueEvening', 18);
+  try {
+    const ok = await ensureNotificationPermissions();
+    if (!ok) {
+      await refreshAppBadge([]);
+      return;
     }
-  }
 
-  await refreshAppBadge(enabled);
+    const Notifications = await getNotifications();
+    if (!Notifications) return;
+
+    await ensureAndroidChannel(Notifications);
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    const enabled = fixed.filter((f) => f.enabled);
+    const base = new Date();
+
+    for (const bill of enabled) {
+      for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+        const cursor = new Date(
+          base.getFullYear(),
+          base.getMonth() + monthOffset,
+          1
+        );
+        const due = dueDateInMonth(
+          bill.dueDay,
+          cursor.getFullYear(),
+          cursor.getMonth()
+        );
+        const fiveBefore = reminderDate(due, 5);
+        const threeBefore = reminderDate(due, 3);
+        const oneBefore = reminderDate(due, 1);
+
+        await scheduleOne(Notifications, bill, due, fiveBefore, 'before5', 9);
+        await scheduleOne(Notifications, bill, due, threeBefore, 'before3', 9);
+        await scheduleOne(Notifications, bill, due, oneBefore, 'before1', 9);
+        await scheduleOne(Notifications, bill, due, due, 'due', 8);
+        await scheduleOne(Notifications, bill, due, due, 'dueEvening', 18);
+      }
+    }
+
+    await refreshAppBadge(enabled);
+  } catch {
+    // Nunca tumbar la app por avisos
+  }
 }
 
 /**
@@ -304,99 +316,97 @@ export async function notifyDueBillsNow(
   fixed: FixedExpense[],
   options?: { force?: boolean }
 ): Promise<{ sent: boolean; count: number }> {
-  const dueSoon = listDueSoonBills(fixed, todayKey(), 5);
-  if (dueSoon.length === 0) {
-    await refreshAppBadge(fixed);
-    return { sent: false, count: 0 };
-  }
-
-  const today = todayKey();
-  if (!options?.force) {
-    try {
-      const last = await AsyncStorage.getItem(DIGEST_KEY);
-      if (last === today) {
-        await refreshAppBadge(fixed);
-        return { sent: false, count: dueSoon.length };
-      }
-    } catch {
-      // seguir
+  try {
+    const dueSoon = listDueSoonBills(fixed, todayKey(), 5);
+    if (dueSoon.length === 0) {
+      await refreshAppBadge(fixed);
+      return { sent: false, count: 0 };
     }
-  }
 
-  const ok = await ensureNotificationPermissions();
-  if (!ok) return { sent: false, count: dueSoon.length };
+    const today = todayKey();
+    if (!options?.force) {
+      try {
+        const last = await AsyncStorage.getItem(DIGEST_KEY);
+        if (last === today) {
+          await refreshAppBadge(fixed);
+          return { sent: false, count: dueSoon.length };
+        }
+      } catch {
+        // seguir
+      }
+    }
 
-  await ensureAndroidChannel();
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return { sent: false, count: dueSoon.length };
 
-  const names = dueSoon
-    .slice(0, 4)
-    .map(({ bill, days }) => {
-      const when =
-        days === 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
-      return `${bill.name} (${when})`;
-    })
-    .join(', ');
-  const more =
-    dueSoon.length > 4 ? ` y ${dueSoon.length - 4} más` : '';
-  const title =
-    dueSoon.some((d) => d.days === 0)
+    const Notifications = await getNotifications();
+    if (!Notifications) return { sent: false, count: dueSoon.length };
+
+    await ensureAndroidChannel(Notifications);
+
+    const names = dueSoon
+      .slice(0, 4)
+      .map(({ bill, days }) => {
+        const when =
+          days === 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
+        return `${bill.name} (${when})`;
+      })
+      .join(', ');
+    const more = dueSoon.length > 4 ? ` y ${dueSoon.length - 4} más` : '';
+    const title = dueSoon.some((d) => d.days === 0)
       ? `Tenés ${dueSoon.length} pago${dueSoon.length === 1 ? '' : 's'} por hacer`
       : `Pagos fijos cerca (${dueSoon.length})`;
-  const body = `${names}${more}. Abrí Fijos y tocá Pagar.`;
+    const body = `${names}${more}. Abrí Fijos y tocá Pagar.`;
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      data: { kind: 'digest', count: dueSoon.length },
-      badge: dueSoon.length,
-      sound: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      vibrate: VIBRATE_PATTERN,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, color: '#E24B3C' } : {}),
-    },
-    trigger: null,
-  });
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { kind: 'digest', count: dueSoon.length },
+        badge: dueSoon.length,
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        vibrate: VIBRATE_PATTERN,
+        ...(Platform.OS === 'android'
+          ? { channelId: CHANNEL_ID, color: '#E24B3C' }
+          : {}),
+      },
+      trigger: null,
+    });
 
-  vibrateForBillAlert();
-  await refreshAppBadge(fixed);
+    vibrateForBillAlert();
+    await refreshAppBadge(fixed);
 
-  try {
-    await AsyncStorage.setItem(DIGEST_KEY, today);
+    try {
+      await AsyncStorage.setItem(DIGEST_KEY, today);
+    } catch {
+      // ignore
+    }
+
+    return { sent: true, count: dueSoon.length };
   } catch {
-    // ignore
+    return { sent: false, count: 0 };
   }
-
-  return { sent: true, count: dueSoon.length };
-}
-
-const WEEKLY_CHANNEL_ID = 'weekly-report';
-const WEEKLY_NOTIF_ID = 'weekly-finance-report';
-
-async function ensureWeeklyChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(WEEKLY_CHANNEL_ID, {
-    name: 'Informe semanal',
-    description: 'Resumen semanal de tus finanzas',
-    importance: Notifications.AndroidImportance.DEFAULT,
-    enableVibrate: true,
-    showBadge: false,
-    sound: 'default',
-  });
 }
 
 /** Agenda el informe semanal (domingo 18:00). En web no hace nada. */
-export async function scheduleWeeklyReportNotification(body: string): Promise<boolean> {
+export async function scheduleWeeklyReportNotification(
+  body: string
+): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
     const ok = await ensureNotificationPermissions();
     if (!ok) return false;
-    await ensureWeeklyChannel();
-    await Notifications.cancelScheduledNotificationAsync(WEEKLY_NOTIF_ID).catch(() => {});
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
+    await ensureWeeklyChannel(Notifications);
+    await Notifications.cancelScheduledNotificationAsync(WEEKLY_NOTIF_ID).catch(
+      () => undefined
+    );
 
     const when = new Date();
     const day = when.getDay();
-    let add = (7 - day) % 7;
+    const add = (7 - day) % 7;
     const triggerDate = new Date(when);
     triggerDate.setDate(when.getDate() + add);
     triggerDate.setHours(18, 0, 0, 0);
@@ -424,12 +434,17 @@ export async function scheduleWeeklyReportNotification(body: string): Promise<bo
   }
 }
 
-export async function notifyWeeklyReportNow(title: string, body: string): Promise<boolean> {
+export async function notifyWeeklyReportNow(
+  title: string,
+  body: string
+): Promise<boolean> {
   try {
     if (Platform.OS === 'web') return false;
     const ok = await ensureNotificationPermissions();
     if (!ok) return false;
-    await ensureWeeklyChannel();
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
+    await ensureWeeklyChannel(Notifications);
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -448,22 +463,30 @@ export async function notifyWeeklyReportNow(title: string, body: string): Promis
 
 /** Notificación de prueba inmediata + vibración (para que el usuario verifique). */
 export async function sendTestBillNotification(): Promise<boolean> {
-  const ok = await ensureNotificationPermissions();
-  if (!ok) return false;
-  await ensureAndroidChannel();
+  try {
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return false;
+    const Notifications = await getNotifications();
+    if (!Notifications) return false;
+    await ensureAndroidChannel(Notifications);
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Aviso de gastos fijos activo',
-      body: 'Así te va a avisar cuando tengas que pagar un fijo. El teléfono también vibra.',
-      data: { kind: 'test' },
-      sound: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      vibrate: VIBRATE_PATTERN,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, color: '#E24B3C' } : {}),
-    },
-    trigger: null,
-  });
-  vibrateForBillAlert();
-  return true;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Aviso de gastos fijos activo',
+        body: 'Así te va a avisar cuando tengas que pagar un fijo. El teléfono también vibra.',
+        data: { kind: 'test' },
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        vibrate: VIBRATE_PATTERN,
+        ...(Platform.OS === 'android'
+          ? { channelId: CHANNEL_ID, color: '#E24B3C' }
+          : {}),
+      },
+      trigger: null,
+    });
+    vibrateForBillAlert();
+    return true;
+  } catch {
+    return false;
+  }
 }

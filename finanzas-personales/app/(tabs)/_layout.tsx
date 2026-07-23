@@ -4,7 +4,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../../src/context/FinanceContext';
 import { useSettings } from '../../src/context/SettingsContext';
-import { countUpcomingBills } from '../../src/lib/notifications';
+import { countUpcomingBills } from '../../src/lib/fixedBills';
 
 export default function TabsLayout() {
   const { colors } = useSettings();

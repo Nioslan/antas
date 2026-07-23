@@ -98,12 +98,33 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    loadAppSettings().then((loaded) => {
-      applyCategoryConfigToRuntime(loaded);
-      setSettings(loaded);
-      configureMoneyFormat(loaded.currency, loaded.language);
-      setReady(true);
-    });
+    let cancelled = false;
+    const failOpen = setTimeout(() => {
+      if (!cancelled) {
+        setReady(true);
+      }
+    }, 6000);
+
+    loadAppSettings()
+      .then((loaded) => {
+        if (cancelled) return;
+        applyCategoryConfigToRuntime(loaded);
+        setSettings(loaded);
+        configureMoneyFormat(loaded.currency, loaded.language);
+        setReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setReady(true);
+      })
+      .finally(() => {
+        clearTimeout(failOpen);
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(failOpen);
+    };
   }, []);
 
   useEffect(() => {

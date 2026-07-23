@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
   Image,
@@ -130,6 +129,8 @@ export default function AddTransactionScreen() {
 
   const pickReceipt = async () => {
     try {
+      // Import diferido: no tumba el arranque si el APK viejo no trae el módulo nativo.
+      const ImagePicker = await import('expo-image-picker');
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert(

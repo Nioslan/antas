@@ -35,7 +35,7 @@ import {
 } from '../src/lib/notifications';
 import { getOpenAiKey, setOpenAiKey } from '../src/lib/storage';
 import { sanitizeApiKey, testOpenAiKey } from '../src/lib/ai';
-import { checkAndApplyUpdate, getUpdateMeta } from '../src/lib/updates';
+import { checkAndPrepareUpdate, applyPreparedUpdate, getUpdateMeta } from '../src/lib/updates';
 import type { AppCurrency, AppLanguage, ThemeMode } from '../src/i18n';
 import { spacing } from '../src/theme';
 
@@ -163,10 +163,21 @@ export default function SettingsScreen() {
     setCheckingUpdate(true);
     setUpdateProgress({ progress: 0.05, message: 'Buscando actualización…' });
     try {
-      const result = await checkAndApplyUpdate(language, (p) => {
+      const result = await checkAndPrepareUpdate(language, (p) => {
         setUpdateProgress({ progress: p.progress, message: p.message });
       });
-      if (result.status === 'updated') return; // app reloads
+      if (result.status === 'readyToApply') {
+        Alert.alert(tr('checkUpdates'), result.message, [
+          { text: 'Más tarde', style: 'cancel' },
+          {
+            text: 'Actualizar ahora',
+            onPress: () => {
+              void applyPreparedUpdate();
+            },
+          },
+        ]);
+        return;
+      }
       Alert.alert(tr('checkUpdates'), result.message);
     } finally {
       setCheckingUpdate(false);
@@ -532,7 +543,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon={<Ionicons name="cloud-download-outline" size={20} color={colors.accent} />}
           title={checkingUpdate ? tr('checkingUpdates') : tr('checkUpdates')}
-          subtitle="Se actualiza sola al abrir o volver a la app. Tus datos no se borran."
+          subtitle="Te avisamos cuando hay una nueva. Vos elegís cuándo instalarla. Tus datos no se borran."
           onPress={checkUpdates}
           right={
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />

@@ -1,196 +1,196 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import * as Updates from 'expo-updates';
 import {
-  startUpdateOnResumeWatcher,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  applyPreparedUpdate,
+  getReadyUpdateId,
+  prepareAvailableUpdate,
+  startUpdateAvailabilityWatcher,
   updatesAreSupported,
 } from '../lib/updates';
-
-type Phase = 'checking' | 'downloading' | 'applying' | 'ready' | 'skip';
+import { notifyAppUpdateReady } from '../lib/notifications';
 
 /**
- * Pantalla de arranque: busca update, muestra progreso y reinicia.
- * Después, sigue revisando en silencio al volver a la app y cada tanto.
- * Las OTA no borran movimientos, metas, Ahorro ni ajustes del teléfono.
+ * No bloquea el arranque.
+ * En segundo plano descarga updates, manda notificación y muestra un aviso
+ * para que el usuario elija cuándo instalar (sin perder datos).
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
-  const [phase, setPhase] = useState<Phase>('checking');
-  const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState('Buscando actualización…');
+  const [readyVisible, setReadyVisible] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const skipUpdates = !updatesAreSupported();
   const started = useRef(false);
 
-  const updates = Updates.useUpdates();
-  const skipUpdates = !updatesAreSupported();
-
   useEffect(() => {
-    if (skipUpdates) {
-      setPhase('skip');
-      return;
-    }
+    if (skipUpdates) return;
     if (started.current) return;
     started.current = true;
 
     let cancelled = false;
 
-    const run = async (attempt: number) => {
-      try {
-        setPhase('checking');
-        setProgress(0.05);
-        setStatusText('Buscando actualización…');
+    const showReady = async (updateId: string, notify: boolean) => {
+      if (cancelled) return;
+      if (notify) await notifyAppUpdateReady();
+      setReadyVisible(true);
+      void updateId;
+    };
 
-        const check = await Updates.checkForUpdateAsync();
-        if (cancelled) return;
+    const boot = async () => {
+      // Si ya había una update bajada de antes
+      const existing = await getReadyUpdateId();
+      if (existing) {
+        await showReady(existing, false);
+      }
 
-        if (!check.isAvailable) {
-          setProgress(1);
-          setPhase('ready');
-          return;
-        }
-
-        setPhase('downloading');
-        setStatusText('Descargando actualización…');
-        setProgress(0.15);
-
-        const tick = setInterval(() => {
-          setProgress((p) => (p < 0.85 ? p + 0.03 : p));
-        }, 400);
-
-        const result = await Updates.fetchUpdateAsync();
-        clearInterval(tick);
-        if (cancelled) return;
-
-        if (result.isNew) {
-          setPhase('applying');
-          setProgress(1);
-          setStatusText('Activando actualización…');
-          await new Promise((r) => setTimeout(r, 450));
-          await Updates.reloadAsync();
-          return;
-        }
-
-        setProgress(1);
-        setPhase('ready');
-      } catch {
-        if (cancelled) return;
-        // Hasta 2 reintentos por fallas de red al abrir
-        if (attempt < 2) {
-          setStatusText('Reintentando…');
-          await new Promise((r) => setTimeout(r, 900 + attempt * 600));
-          if (!cancelled) await run(attempt + 1);
-          return;
-        }
-        setStatusText('Sin conexión para actualizar. Continuando…');
-        setProgress(1);
-        setTimeout(() => {
-          if (!cancelled) setPhase('ready');
-        }, 700);
+      const prep = await prepareAvailableUpdate();
+      if (cancelled) return;
+      if (prep.available && prep.updateId) {
+        await showReady(prep.updateId, Boolean(prep.shouldNotify));
       }
     };
 
-    void run(0);
+    void boot();
+
+    const stop = startUpdateAvailabilityWatcher((updateId) => {
+      if (!cancelled) setReadyVisible(true);
+      void updateId;
+    });
 
     return () => {
       cancelled = true;
+      stop();
     };
   }, [skipUpdates]);
 
-  // Mientras la app está en uso: si hay update nueva, se baja sola
-  useEffect(() => {
-    if (skipUpdates || (phase !== 'ready' && phase !== 'skip')) return;
-    return startUpdateOnResumeWatcher();
-  }, [skipUpdates, phase]);
+  const onLater = () => setReadyVisible(false);
 
-  useEffect(() => {
-    if (
-      phase === 'downloading' &&
-      typeof updates.downloadProgress === 'number' &&
-      updates.downloadProgress > 0
-    ) {
-      setProgress(Math.max(0.15, Math.min(0.95, updates.downloadProgress)));
+  const onApply = async () => {
+    setApplying(true);
+    try {
+      await applyPreparedUpdate();
+    } catch {
+      setApplying(false);
+      setReadyVisible(true);
     }
-  }, [phase, updates.downloadProgress]);
-
-  if (skipUpdates || phase === 'ready' || phase === 'skip') {
-    return <>{children}</>;
-  }
-
-  const pct = Math.round(Math.min(1, Math.max(0, progress)) * 100);
+  };
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.brand}>Finanzas</Text>
-      <Text style={styles.title}>Actualizando la app</Text>
-      <Text style={styles.subtitle}>{statusText}</Text>
+    <>
+      {children}
 
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${pct}%` }]} />
-      </View>
-      <Text style={styles.pct}>{pct}%</Text>
+      <Modal
+        visible={readyVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={onLater}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            <Text style={styles.brand}>Finanzas</Text>
+            <Text style={styles.title}>Actualización lista</Text>
+            <Text style={styles.body}>
+              Hay una versión nueva. Podés instalarla ahora o más tarde. Tus
+              movimientos, metas y Ahorro no se borran.
+            </Text>
 
-      {phase === 'checking' || phase === 'downloading' ? (
-        <ActivityIndicator color="#3DDC97" style={{ marginTop: 18 }} />
-      ) : null}
-
-      <Text style={styles.hint}>
-        No cierres la app. Tus datos se mantienen en este teléfono (no se
-        borran al actualizar).
-      </Text>
-    </View>
+            {applying ? (
+              <View style={styles.busy}>
+                <ActivityIndicator color="#3DDC97" />
+                <Text style={styles.busyText}>Instalando…</Text>
+              </View>
+            ) : (
+              <View style={styles.actions}>
+                <Pressable style={styles.primaryBtn} onPress={onApply}>
+                  <Text style={styles.primaryText}>Actualizar ahora</Text>
+                </Pressable>
+                <Pressable style={styles.secondaryBtn} onPress={onLater}>
+                  <Text style={styles.secondaryText}>Más tarde</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  overlay: {
     flex: 1,
-    backgroundColor: '#0B1F1A',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    padding: 24,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#122E26',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#234A3E',
   },
   brand: {
     color: '#3DDC97',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   title: {
     color: '#F2F7F4',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     marginBottom: 8,
   },
-  subtitle: {
+  body: {
     color: '#9BB5AB',
     fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 28,
+    lineHeight: 22,
+    marginBottom: 18,
   },
-  barTrack: {
-    width: '100%',
-    maxWidth: 320,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: '#234A3E',
-    overflow: 'hidden',
+  actions: {
+    gap: 10,
   },
-  barFill: {
-    height: '100%',
+  primaryBtn: {
     backgroundColor: '#3DDC97',
-    borderRadius: 999,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  pct: {
-    marginTop: 10,
-    color: '#F2F7F4',
-    fontWeight: '700',
+  primaryText: {
+    color: '#0B1F1A',
+    fontWeight: '800',
     fontSize: 16,
   },
-  hint: {
-    marginTop: 28,
-    color: '#6F8A7F',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
+  secondaryBtn: {
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#234A3E',
+  },
+  secondaryText: {
+    color: '#F2F7F4',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  busy: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  busyText: {
+    color: '#9BB5AB',
+    fontWeight: '600',
   },
 });

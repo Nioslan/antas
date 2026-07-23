@@ -6,9 +6,11 @@ import { formatMoney, todayKey } from './categories';
 import { daysUntil, dueDateInMonth, reminderDate } from './fixedExpenses';
 
 const CHANNEL_ID = 'fixed-bills';
+const UPDATE_CHANNEL_ID = 'app-updates';
 const DIGEST_KEY = 'finanzas_last_due_digest';
 /** Patrón fuerte: vibra – pausa – vibra – pausa – vibra larga */
 const VIBRATE_PATTERN = [0, 400, 200, 400, 200, 700];
+const UPDATE_VIBRATE = [0, 250, 150, 250];
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -54,6 +56,44 @@ async function ensureAndroidChannel(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     sound: 'default',
   });
+}
+
+async function ensureUpdateChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(UPDATE_CHANNEL_ID, {
+    name: 'Actualizaciones de la app',
+    description: 'Avisos cuando hay una versión nueva lista para instalar',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    enableVibrate: true,
+    vibrationPattern: UPDATE_VIBRATE,
+    showBadge: false,
+    lightColor: '#3DDC97',
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    sound: 'default',
+  });
+}
+
+/** Aviso local: hay una actualización lista; el usuario decide cuándo instalar. */
+export async function notifyAppUpdateReady(): Promise<void> {
+  try {
+    const ok = await ensureNotificationPermissions();
+    if (!ok) return;
+    await ensureUpdateChannel();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Actualización lista',
+        body: 'Hay una versión nueva de Finanzas. Abrí la app y tocá “Actualizar ahora” cuando quieras. Tus datos no se borran.',
+        data: { kind: 'app-update' },
+        sound: true,
+        ...(Platform.OS === 'android'
+          ? { channelId: UPDATE_CHANNEL_ID, color: '#3DDC97' }
+          : {}),
+      },
+      trigger: null,
+    });
+  } catch {
+    // ignore
+  }
 }
 
 function parseLocalDate(iso: string, hour = 9, minute = 0): Date {

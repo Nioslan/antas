@@ -1,11 +1,14 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
+import { notifyAppUpdateReady } from './notifications';
 
 export type UpdateCheckResult =
   | { status: 'dev'; message: string }
   | { status: 'unavailable'; message: string }
   | { status: 'upToDate'; message: string; current?: string }
+  | { status: 'readyToApply'; message: string; updateId?: string }
   | { status: 'updated'; message: string }
   | { status: 'error'; message: string };
 
@@ -15,8 +18,18 @@ export type UpdateProgress = {
   message: string;
 };
 
+export type PreparedUpdate = {
+  available: boolean;
+  updateId?: string;
+  /** true si es la primera vez que avisamos por esta update */
+  shouldNotify?: boolean;
+};
+
 /** Canal fijo de las pruebas con amigos (EAS preview). */
 export const TESTERS_UPDATE_CHANNEL = 'preview';
+
+const READY_KEY = 'finanzas_update_ready_id';
+const NOTIFIED_KEY = 'finanzas_update_notified_id';
 
 export function updatesAreSupported(): boolean {
   return (
@@ -26,11 +39,91 @@ export function updatesAreSupported(): boolean {
   );
 }
 
+function resolveUpdateId(fetched?: { manifest?: unknown }): string {
+  const fromUpdates = Updates.updateId;
+  if (fromUpdates) return fromUpdates;
+  const manifest = fetched?.manifest as { id?: string } | undefined;
+  if (manifest?.id) return String(manifest.id);
+  return `upd_${Date.now().toString(36)}`;
+}
+
+/** Marca en disco que hay una update lista (para mostrar el aviso). */
+export async function markUpdateReady(updateId: string): Promise<void> {
+  await AsyncStorage.setItem(READY_KEY, updateId);
+}
+
+export async function getReadyUpdateId(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(READY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function clearUpdateReadyMark(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(READY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /**
- * Checks EAS Update for a new JS bundle, downloads it, and reloads the app.
- * Only works in release builds created with EAS (not Expo Go / Metro).
+ * Busca y descarga la update, pero NO reinicia.
+ * El usuario decide cuándo aplicar (reload).
+ * OTA = solo JS; los datos del teléfono no se borran.
  */
-export async function checkAndApplyUpdate(
+export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
+  if (!updatesAreSupported()) return { available: false };
+
+  try {
+    const check = await Updates.checkForUpdateAsync();
+    if (!check.isAvailable) {
+      await clearUpdateReadyMark();
+      return { available: false };
+    }
+
+    const fetched = await Updates.fetchUpdateAsync();
+    if (!fetched.isNew) {
+      // Puede que ya esté descargada de antes
+      const existing = await getReadyUpdateId();
+      if (existing) {
+        return { available: true, updateId: existing, shouldNotify: false };
+      }
+      return { available: false };
+    }
+
+    const updateId = resolveUpdateId(fetched);
+    await markUpdateReady(updateId);
+
+    let shouldNotify = true;
+    try {
+      const notified = await AsyncStorage.getItem(NOTIFIED_KEY);
+      shouldNotify = notified !== updateId;
+      if (shouldNotify) {
+        await AsyncStorage.setItem(NOTIFIED_KEY, updateId);
+      }
+    } catch {
+      shouldNotify = true;
+    }
+
+    return { available: true, updateId, shouldNotify };
+  } catch {
+    return { available: false };
+  }
+}
+
+/** Aplica la update ya descargada (reinicia la app). Datos intactos. */
+export async function applyPreparedUpdate(): Promise<void> {
+  await clearUpdateReadyMark();
+  await Updates.reloadAsync();
+}
+
+/**
+ * Checks EAS Update, downloads it, and deja listo para que el usuario confirme.
+ * Solo aplica sola si onProgress termina en applying y el caller decide.
+ */
+export async function checkAndPrepareUpdate(
   language: 'es' | 'en' = 'es',
   onProgress?: (p: UpdateProgress) => void
 ): Promise<UpdateCheckResult> {
@@ -63,6 +156,7 @@ export async function checkAndApplyUpdate(
 
     const result = await Updates.checkForUpdateAsync();
     if (!result.isAvailable) {
+      await clearUpdateReadyMark();
       onProgress?.({
         phase: 'checking',
         progress: 1,
@@ -97,6 +191,21 @@ export async function checkAndApplyUpdate(
     clearInterval(tick);
 
     if (!fetched.isNew) {
+      const existing = await getReadyUpdateId();
+      if (existing) {
+        onProgress?.({
+          phase: 'applying',
+          progress: 1,
+          message: es ? 'Actualización lista.' : 'Update ready.',
+        });
+        return {
+          status: 'readyToApply',
+          message: es
+            ? 'Hay una actualización lista. ¿Querés instalarla ahora? Tus datos no se borran.'
+            : 'An update is ready. Install now? Your data is kept.',
+          updateId: existing,
+        };
+      }
       return {
         status: 'upToDate',
         message: es
@@ -105,19 +214,21 @@ export async function checkAndApplyUpdate(
       };
     }
 
+    const updateId = resolveUpdateId(fetched);
+    await markUpdateReady(updateId);
+
     onProgress?.({
       phase: 'applying',
       progress: 1,
-      message: es ? 'Activando actualización…' : 'Applying update…',
+      message: es ? 'Actualización lista.' : 'Update ready.',
     });
 
-    await new Promise((r) => setTimeout(r, 400));
-    await Updates.reloadAsync();
     return {
-      status: 'updated',
+      status: 'readyToApply',
       message: es
-        ? 'Actualización instalada. Reiniciando…'
-        : 'Update installed. Reloading…',
+        ? 'Hay una actualización lista. ¿Querés instalarla ahora? Tus datos no se borran.'
+        : 'An update is ready. Install now? Your data is kept.',
+      updateId,
     };
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
@@ -130,33 +241,23 @@ export async function checkAndApplyUpdate(
   }
 }
 
-/**
- * Busca y aplica update en silencio (al volver a la app).
- * No tira errores al usuario si falla la red.
- * Solo cambia el JS de la app: los datos del teléfono no se tocan.
- */
-export async function silentCheckAndApplyUpdate(): Promise<boolean> {
-  if (!updatesAreSupported()) return false;
-  try {
-    const check = await Updates.checkForUpdateAsync();
-    if (!check.isAvailable) return false;
-    const fetched = await Updates.fetchUpdateAsync();
-    if (!fetched.isNew) return false;
-    await Updates.reloadAsync();
-    return true;
-  } catch {
-    return false;
-  }
+/** @deprecated usar checkAndPrepareUpdate + applyPreparedUpdate */
+export async function checkAndApplyUpdate(
+  language: 'es' | 'en' = 'es',
+  onProgress?: (p: UpdateProgress) => void
+): Promise<UpdateCheckResult> {
+  return checkAndPrepareUpdate(language, onProgress);
 }
 
 /**
- * Revisa updates:
- * - al volver al frente (máx. 1 vez cada 90 s)
- * - en segundo plano cada 15 min mientras la app está abierta
- *
- * OTA = solo código JS. AsyncStorage / datos locales no se borran.
+ * Revisa updates en segundo plano:
+ * - descarga si hay
+ * - manda notificación (una vez por update)
+ * - avisa al UI para que el usuario elija cuándo instalar
  */
-export function startUpdateOnResumeWatcher(): () => void {
+export function startUpdateAvailabilityWatcher(
+  onReady: (updateId: string) => void
+): () => void {
   if (!updatesAreSupported()) return () => undefined;
 
   let lastCheck = 0;
@@ -169,17 +270,25 @@ export function startUpdateOnResumeWatcher(): () => void {
     if (running || now - lastCheck < MIN_MS) return;
     lastCheck = now;
     running = true;
-    void silentCheckAndApplyUpdate().finally(() => {
-      running = false;
-    });
+    void (async () => {
+      try {
+        const prep = await prepareAvailableUpdate();
+        if (!prep.available || !prep.updateId) return;
+        if (prep.shouldNotify) {
+          await notifyAppUpdateReady();
+        }
+        onReady(prep.updateId);
+      } finally {
+        running = false;
+      }
+    })();
   };
 
   const onChange = (state: AppStateStatus) => {
     if (state === 'active') runCheck();
   };
 
-  // Primera pasada un poco después de abrir (por si el bootstrap falló por red)
-  const bootTimer = setTimeout(runCheck, 12_000);
+  const bootTimer = setTimeout(runCheck, 2500);
   const periodic = setInterval(() => {
     if (AppState.currentState === 'active') runCheck();
   }, PERIODIC_MS);

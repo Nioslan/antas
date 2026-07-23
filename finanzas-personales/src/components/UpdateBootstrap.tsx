@@ -16,10 +16,26 @@ import {
 } from '../lib/updates';
 import { notifyAppUpdateReady } from '../lib/notifications';
 
+const BOOT_CHECK_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+  });
+}
+
 /**
  * No bloquea el arranque.
- * Siempre busca la ÚLTIMA update del canal (no se queda con una vieja).
- * Barra de progreso + modal Actualizar ahora / Más tarde.
+ * Busca updates en segundo plano con timeout (nunca deja la app en negro).
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [readyVisible, setReadyVisible] = useState(false);
@@ -40,28 +56,40 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     const showReady = async (notify: boolean) => {
       if (cancelled) return;
       setDownloadProgress(null);
-      if (notify) await notifyAppUpdateReady();
+      if (notify) {
+        try {
+          await notifyAppUpdateReady();
+        } catch {
+          // ignore
+        }
+      }
       setReadyVisible(true);
     };
 
     const boot = async () => {
-      // Siempre consultar el servidor (force limpia marcas viejas trabadas)
-      const result = await checkAndPrepareUpdate(
-        'es',
-        (p) => {
-          if (!cancelled) setDownloadProgress(p);
-        },
-        { force: true }
-      );
+      try {
+        const result = await withTimeout(
+          checkAndPrepareUpdate(
+            'es',
+            (p) => {
+              if (!cancelled) setDownloadProgress(p);
+            },
+            { force: true }
+          ),
+          BOOT_CHECK_TIMEOUT_MS
+        );
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (result.status === 'readyToApply') {
-        await showReady(true);
-        return;
+        if (result?.status === 'readyToApply') {
+          await showReady(true);
+          return;
+        }
+      } catch {
+        // Nunca tumbar el arranque por updates
+      } finally {
+        if (!cancelled) setDownloadProgress(null);
       }
-
-      setDownloadProgress(null);
     };
 
     void boot();
@@ -80,12 +108,19 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     };
   }, [skipUpdates]);
 
-  const onLater = () => setReadyVisible(false);
+  const onLater = () => {
+    setApplying(false);
+    setReadyVisible(false);
+  };
 
   const onApply = async () => {
     setApplying(true);
     try {
-      await applyPreparedUpdate();
+      const ok = await withTimeout(applyPreparedUpdate(), 8000);
+      if (ok === null) {
+        setApplying(false);
+        setReadyVisible(true);
+      }
     } catch {
       setApplying(false);
       setReadyVisible(true);
@@ -128,9 +163,8 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
             <Text style={styles.brand}>Finanzas</Text>
             <Text style={styles.title}>Última versión lista</Text>
             <Text style={styles.body}>
-              Bajó el pack completo: sobres, deudas, reportes, presupuestos,
-              retos, calendario e informe semanal. Instalala ahora: tus datos no
-              se borran.
+              Bajó el pack completo. Tocá Actualizar ahora: tus movimientos y
+              Ahorro no se borran.
             </Text>
 
             {applying ? (
@@ -140,6 +174,9 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
                 <View style={styles.track}>
                   <View style={[styles.fill, { width: '100%' }]} />
                 </View>
+                <Pressable style={styles.secondaryBtn} onPress={onLater}>
+                  <Text style={styles.secondaryText}>Cancelar</Text>
+                </Pressable>
               </View>
             ) : (
               <View style={styles.actions}>
@@ -176,9 +213,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
     elevation: 6,
   },
   barTitle: {

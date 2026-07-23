@@ -125,9 +125,10 @@ export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
 }
 
 /** Aplica la update ya descargada (reinicia la app). Datos intactos. */
-export async function applyPreparedUpdate(): Promise<void> {
+export async function applyPreparedUpdate(): Promise<true> {
   await clearUpdateReadyMark();
   await Updates.reloadAsync();
+  return true;
 }
 
 /**

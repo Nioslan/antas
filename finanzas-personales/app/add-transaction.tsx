@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
   Image,
@@ -130,6 +129,8 @@ export default function AddTransactionScreen() {
 
   const pickReceipt = async () => {
     try {
+      // Import diferido: no tumba el arranque si el APK aún no tiene el módulo nativo
+      const ImagePicker = await import('expo-image-picker');
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert(
@@ -160,7 +161,10 @@ export default function AddTransactionScreen() {
         setReceiptUri(asset.uri);
       }
     } catch {
-      Alert.alert('Error', 'No se pudo abrir la galería.');
+      Alert.alert(
+        'Fotos',
+        'En este APK todavía no se pueden adjuntar tickets. Escribí el detalle en la nota; la foto llega con el próximo instalador.'
+      );
     }
   };
 

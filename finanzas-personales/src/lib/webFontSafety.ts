@@ -1,36 +1,14 @@
-import { Platform } from 'react-native';
-import * as Font from 'expo-font';
-
-let installed = false;
-
 /**
- * En web (sobre todo vía tunnel) la carga de Ionicons.ttf a veces falla o
- * tarda >6s y FontObserver tira "6000ms timeout exceeded" como uncaught.
- * Eso no debe tumbar el preview: los íconos pueden demorar, la app sigue.
+ * En web (sobre todo vía tunnel lento) FontObserver de expo-font puede tirar
+ * "6000ms timeout exceeded" como unhandledrejection y el overlay rojo tapa la app.
+ * Solo interceptamos ese rechazo; no tocamos exports de expo-font (son getters).
  */
 export function installWebFontSafety(): void {
-  if (installed) return;
-  if (Platform.OS !== 'web') return;
   if (typeof window === 'undefined') return;
-  installed = true;
 
-  const original = Font.loadAsync.bind(Font);
-  // Soft-fail: nunca rechazar por timeout de fuentes en web.
-  (Font as { loadAsync: typeof Font.loadAsync }).loadAsync = ((
-    ...args: Parameters<typeof Font.loadAsync>
-  ) => {
-    try {
-      const result = original(...args);
-      return Promise.resolve(result).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn('[fonts] loadAsync omitido:', msg);
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[fonts] loadAsync omitido:', msg);
-      return Promise.resolve();
-    }
-  }) as typeof Font.loadAsync;
+  const w = window as Window & { __antasFontSafety?: boolean };
+  if (w.__antasFontSafety) return;
+  w.__antasFontSafety = true;
 
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
@@ -42,6 +20,7 @@ export function installWebFontSafety(): void {
           : String(reason ?? '');
     if (msg.includes('ms timeout exceeded')) {
       event.preventDefault();
+      console.warn('[fonts] timeout ignorado:', msg);
     }
   });
 }

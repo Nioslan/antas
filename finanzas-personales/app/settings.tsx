@@ -40,7 +40,12 @@ import type { AppCurrency, AppLanguage, ThemeMode } from '../src/i18n';
 import { spacing } from '../src/theme';
 
 const KEYS_URL = 'https://platform.openai.com/api-keys';
-const HELP_URL = 'mailto:soporte@finanzas.app?subject=Ayuda%20Finanzas';
+const SUPPORT_EMAIL = 'antasestudio@gmail.com';
+const HELP_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+  'Antas — queja o felicitación'
+)}&body=${encodeURIComponent(
+  'Hola Antas,\n\nEscribo para:\n( ) Queja\n( ) Felicitación\n\nMensaje:\n'
+)}`;
 const APP_VERSION =
   Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
 
@@ -536,6 +541,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon={<Ionicons name="help-circle-outline" size={20} color={colors.accent} />}
           title={tr('help')}
+          subtitle={`Quejas o felicitaciones: ${SUPPORT_EMAIL}`}
           onPress={() => Linking.openURL(HELP_URL)}
           right={
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />

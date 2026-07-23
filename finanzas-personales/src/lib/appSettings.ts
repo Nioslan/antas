@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppCurrency, AppLanguage, ThemeMode } from '../i18n';
 import {
-  configureGastoCategories,
+  configureCategories,
   slugifyCategoryLabel,
   type CategoryOption,
 } from './categories';
@@ -22,6 +22,10 @@ export type AppSettings = {
   customGastoCategories: CategoryOption[];
   /** Renombres de categorías de gasto (builtin o custom). */
   gastoCategoryLabels: Record<string, string>;
+  /** Categorías de ingreso creadas por el usuario. */
+  customGiroCategories: CategoryOption[];
+  /** Renombres de categorías de ingreso (builtin o custom). */
+  giroCategoryLabels: Record<string, string>;
 };
 
 export const defaultSettings: AppSettings = {
@@ -34,6 +38,8 @@ export const defaultSettings: AppSettings = {
   saturdayBonusPercent: 20,
   customGastoCategories: [],
   gastoCategoryLabels: {},
+  customGiroCategories: [],
+  giroCategoryLabels: {},
 };
 
 function normalizeCustomCategories(raw: unknown): CategoryOption[] {
@@ -63,9 +69,11 @@ function normalizeLabelMap(raw: unknown): Record<string, string> {
 }
 
 export function applyCategoryConfigToRuntime(settings: AppSettings): void {
-  configureGastoCategories({
+  configureCategories({
     customGastoCategories: settings.customGastoCategories,
     gastoCategoryLabels: settings.gastoCategoryLabels,
+    customGiroCategories: settings.customGiroCategories,
+    giroCategoryLabels: settings.giroCategoryLabels,
   });
 }
 
@@ -86,6 +94,10 @@ export async function loadAppSettings(): Promise<AppSettings> {
         parsed.customGastoCategories
       ),
       gastoCategoryLabels: normalizeLabelMap(parsed.gastoCategoryLabels),
+      customGiroCategories: normalizeCustomCategories(
+        parsed.customGiroCategories
+      ),
+      giroCategoryLabels: normalizeLabelMap(parsed.giroCategoryLabels),
     };
   } catch {
     return defaultSettings;
@@ -102,6 +114,10 @@ export async function saveAppSettings(settings: AppSettings): Promise<void> {
         settings.customGastoCategories
       ),
       gastoCategoryLabels: normalizeLabelMap(settings.gastoCategoryLabels),
+      customGiroCategories: normalizeCustomCategories(
+        settings.customGiroCategories
+      ),
+      giroCategoryLabels: normalizeLabelMap(settings.giroCategoryLabels),
     })
   );
 }

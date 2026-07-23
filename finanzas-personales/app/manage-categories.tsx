@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Alert,
@@ -11,36 +11,66 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardForm } from '../src/components/KeyboardForm';
-import { PrimaryButton, Screen, Subtitle, Title } from '../src/components/ui';
+import {
+  Chip,
+  PrimaryButton,
+  Screen,
+  Subtitle,
+  Title,
+} from '../src/components/ui';
 import { useSettings } from '../src/context/SettingsContext';
-import { isBuiltinGastoCategory } from '../src/lib/categories';
+import {
+  isBuiltinCategory,
+  type EditableCategoryKind,
+} from '../src/lib/categories';
 import { colors, radius, spacing } from '../src/theme';
+
+function parseKind(raw?: string | string[]): EditableCategoryKind {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === 'giro' ? 'giro' : 'gasto';
+}
 
 export default function ManageCategoriesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ type?: string }>();
   const {
     gastoCategories,
-    addGastoCategory,
-    renameGastoCategory,
-    removeGastoCategory,
+    giroCategories,
+    addEditableCategory,
+    renameEditableCategory,
+    removeEditableCategory,
   } = useSettings();
 
+  const [kind, setKind] = useState<EditableCategoryKind>(parseKind(params.type));
   const [newLabel, setNewLabel] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
 
+  useEffect(() => {
+    setKind(parseKind(params.type));
+  }, [params.type]);
+
+  const categories = kind === 'gasto' ? gastoCategories : giroCategories;
+
   const sorted = useMemo(
     () =>
-      [...gastoCategories].sort((a, b) => {
+      [...categories].sort((a, b) => {
         if (!!a.custom !== !!b.custom) return a.custom ? 1 : -1;
         return a.label.localeCompare(b.label, 'es');
       }),
-    [gastoCategories]
+    [categories]
   );
 
+  const switchKind = (next: EditableCategoryKind) => {
+    setKind(next);
+    setEditingId(null);
+    setEditLabel('');
+    setNewLabel('');
+  };
+
   const onAdd = () => {
-    const result = addGastoCategory(newLabel);
+    const result = addEditableCategory(kind, newLabel);
     if (!result.ok) {
       Alert.alert('No se pudo agregar', result.error);
       return;
@@ -55,7 +85,7 @@ export default function ManageCategoriesScreen() {
 
   const onSaveEdit = () => {
     if (!editingId) return;
-    const result = renameGastoCategory(editingId, editLabel);
+    const result = renameEditableCategory(kind, editingId, editLabel);
     if (!result.ok) {
       Alert.alert('No se pudo cambiar', result.error);
       return;
@@ -67,14 +97,14 @@ export default function ManageCategoriesScreen() {
   const onDelete = (id: string, label: string) => {
     Alert.alert(
       'Eliminar categoría',
-      `¿Borrar "${label}"? Los gastos viejos con esta categoría siguen, pero no vas a poder elegirla en nuevos.`,
+      `¿Borrar "${label}"? Los movimientos viejos con esta categoría siguen, pero no vas a poder elegirla en nuevos.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            const result = removeGastoCategory(id);
+            const result = removeEditableCategory(kind, id);
             if (!result.ok) Alert.alert('No se pudo borrar', result.error);
             if (editingId === id) {
               setEditingId(null);
@@ -91,14 +121,29 @@ export default function ManageCategoriesScreen() {
       <KeyboardForm contentContainerStyle={styles.content} bottomOffset={40}>
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
-            <Title>Categorías de gasto</Title>
+            <Title>Categorías</Title>
             <Subtitle>
-              Renombrá las de siempre o agregá las tuyas (ej: Colegio, Mascotas).
+              {kind === 'gasto'
+                ? 'Renombrá o agregá categorías de gasto (ej: Colegio, Mascotas).'
+                : 'Renombrá o agregá categorías de ingreso (ej: Propina, Alquiler cobrado).'}
             </Subtitle>
           </View>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.cancel}>Cerrar</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.row}>
+          <Chip
+            label="Gasto"
+            active={kind === 'gasto'}
+            onPress={() => switchKind('gasto')}
+          />
+          <Chip
+            label="Ingreso"
+            active={kind === 'giro'}
+            onPress={() => switchKind('giro')}
+          />
         </View>
 
         <Text style={styles.section}>Agregar nueva</Text>
@@ -117,9 +162,12 @@ export default function ManageCategoriesScreen() {
           <PrimaryButton label="Agregar" onPress={onAdd} />
         </View>
 
-        <Text style={styles.section}>Tus categorías</Text>
+        <Text style={styles.section}>
+          {kind === 'gasto' ? 'Categorías de gasto' : 'Categorías de ingreso'}
+        </Text>
         {sorted.map((cat) => {
           const editing = editingId === cat.id;
+          const custom = cat.custom || !isBuiltinCategory(kind, cat.id);
           return (
             <View key={cat.id} style={styles.card}>
               {editing ? (
@@ -149,40 +197,36 @@ export default function ManageCategoriesScreen() {
                   </View>
                 </>
               ) : (
-                <>
-                  <View style={styles.cardTop}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.catName}>{cat.label}</Text>
-                      <Text style={styles.catMeta}>
-                        {cat.custom || !isBuiltinGastoCategory(cat.id)
-                          ? 'Personalizada'
-                          : 'Base'}
-                      </Text>
-                    </View>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.catName}>{cat.label}</Text>
+                    <Text style={styles.catMeta}>
+                      {custom ? 'Personalizada' : 'Base'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.iconBtn}
+                    onPress={() => startEdit(cat.id, cat.label)}
+                  >
+                    <Ionicons
+                      name="pencil-outline"
+                      size={18}
+                      color={colors.accent}
+                    />
+                  </Pressable>
+                  {custom ? (
                     <Pressable
                       style={styles.iconBtn}
-                      onPress={() => startEdit(cat.id, cat.label)}
+                      onPress={() => onDelete(cat.id, cat.label)}
                     >
                       <Ionicons
-                        name="pencil-outline"
+                        name="trash-outline"
                         size={18}
-                        color={colors.accent}
+                        color={colors.expense}
                       />
                     </Pressable>
-                    {cat.custom || !isBuiltinGastoCategory(cat.id) ? (
-                      <Pressable
-                        style={styles.iconBtn}
-                        onPress={() => onDelete(cat.id, cat.label)}
-                      >
-                        <Ionicons
-                          name="trash-outline"
-                          size={18}
-                          color={colors.expense}
-                        />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </>
+                  ) : null}
+                </View>
               )}
             </View>
           );
@@ -206,6 +250,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '500',
     marginTop: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   section: {
     color: colors.text,

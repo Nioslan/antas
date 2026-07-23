@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,8 +21,9 @@ import { useFinance } from '../src/context/FinanceContext';
 import { useSettings } from '../src/context/SettingsContext';
 import {
   defaultCategory,
-  getCategories,
+  hhmmToTime12,
   nowTimeKey,
+  time12ToHhmm,
   todayKey,
 } from '../src/lib/categories';
 import {
@@ -53,7 +55,7 @@ export default function AddTransactionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string; week?: string }>();
   const { addTransaction } = useFinance();
-  const { gastoCategories } = useSettings();
+  const { gastoCategories, giroCategories } = useSettings();
 
   const initialType = parseType(params.type);
   const addType: TransactionType =
@@ -72,14 +74,18 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState('');
   const [time, setTime] = useState(nowTimeKey());
 
-  const categories =
-    type === 'gasto' ? gastoCategories : getCategories(type);
+  const categories = type === 'gasto' ? gastoCategories : giroCategories;
+  const time12 = useMemo(() => hhmmToTime12(time), [time]);
   const weekLabel = formatWeekLabel(weekAnchor);
   const { start, end } = getWeekRange(weekAnchor);
 
   const switchType = (next: TransactionType) => {
     setType(next);
     setCategory(defaultCategory(next));
+  };
+
+  const patchTime12 = (patch: Partial<typeof time12>) => {
+    setTime(time12ToHhmm({ ...time12, ...patch }));
   };
 
   const moveWeek = (delta: number) => {
@@ -191,24 +197,65 @@ export default function AddTransactionScreen() {
             />
           ))}
         </View>
-        {type === 'gasto' ? (
-          <Pressable
-            onPress={() => router.push('/manage-categories')}
-            style={styles.manageCats}
-          >
-            <Text style={styles.manageCatsText}>
-              Cambiar o agregar categorías
-            </Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/manage-categories',
+              params: { type: type === 'giro' ? 'giro' : 'gasto' },
+            })
+          }
+          style={styles.manageCats}
+        >
+          <Text style={styles.manageCatsText}>
+            Cambiar o agregar categorías
+          </Text>
+        </Pressable>
 
-        <Field
-          label="Hora (HH:MM)"
-          value={time}
-          onChangeText={setTime}
-          placeholder={nowTimeKey()}
-          keyboardType="numbers-and-punctuation"
-        />
+        <Text style={styles.label}>Hora</Text>
+        <View style={styles.timeRow}>
+          <TextInput
+            value={String(time12.hour)}
+            onChangeText={(raw) => {
+              const n = Number(raw.replace(/\D/g, '').slice(0, 2));
+              if (!raw.trim()) {
+                patchTime12({ hour: 12 });
+                return;
+              }
+              if (!Number.isFinite(n)) return;
+              patchTime12({ hour: Math.min(12, Math.max(1, n)) });
+            }}
+            keyboardType="number-pad"
+            style={styles.timeInput}
+            maxLength={2}
+          />
+          <Text style={styles.timeColon}>:</Text>
+          <TextInput
+            value={String(time12.minute).padStart(2, '0')}
+            onChangeText={(raw) => {
+              const digits = raw.replace(/\D/g, '').slice(0, 2);
+              if (!digits) {
+                patchTime12({ minute: 0 });
+                return;
+              }
+              const n = Number(digits);
+              if (!Number.isFinite(n)) return;
+              patchTime12({ minute: Math.min(59, Math.max(0, n)) });
+            }}
+            keyboardType="number-pad"
+            style={styles.timeInput}
+            maxLength={2}
+          />
+          <Chip
+            label="a. m."
+            active={time12.period === 'AM'}
+            onPress={() => patchTime12({ period: 'AM' })}
+          />
+          <Chip
+            label="p. m."
+            active={time12.period === 'PM'}
+            onPress={() => patchTime12({ period: 'PM' })}
+          />
+        </View>
 
         <Field
           label="Nota / en qué (opcional)"
@@ -338,5 +385,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
     textDecorationLine: 'underline',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeInput: {
+    width: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  timeColon: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 18,
   },
 });

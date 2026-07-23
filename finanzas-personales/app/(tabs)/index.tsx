@@ -22,6 +22,7 @@ import { useFinance } from '../../src/context/FinanceContext';
 import {
   formatMoney,
   getCategoryLabel,
+  monthKey,
   todayKey,
   typeLabel,
 } from '../../src/lib/categories';
@@ -33,6 +34,8 @@ import {
   summarizePeriod,
   type Period,
 } from '../../src/lib/periods';
+import { buildBudgetRows, budgetTotals } from '../../src/lib/budgets';
+import { computeHealthScore } from '../../src/lib/healthScore';
 import { useTheme } from '../../src/context/SettingsContext';
 import { spacing, type ThemeColors } from '../../src/theme';
 
@@ -63,6 +66,22 @@ export default function HomeScreen() {
     () => state.transactions.map((t) => t.date),
     [state.transactions]
   );
+
+  const health = useMemo(() => computeHealthScore(state), [state]);
+  const budgetAlert = useMemo(() => {
+    const totals = budgetTotals(buildBudgetRows(state, monthKey()));
+    if (totals.overCount > 0) return `${totals.overCount} al límite`;
+    if (totals.warnCount > 0) return `${totals.warnCount} cerca`;
+    return null;
+  }, [state]);
+  const healthTone =
+    health.tone === 'great'
+      ? colors.income
+      : health.tone === 'ok'
+        ? colors.accent
+        : health.tone === 'warn'
+          ? colors.warning
+          : colors.expense;
 
   const label = formatPeriodLabel(period, anchor);
   const canAdd = period === 'week' || period === 'day';
@@ -161,6 +180,51 @@ export default function HomeScreen() {
             Ingresos {formatMoney(summary.giro)} − gastos{' '}
             {formatMoney(summary.gasto + summary.inversion)}
           </Text>
+        </View>
+
+        <Pressable
+          style={styles.healthCard}
+          onPress={() => router.push('/reportes')}
+        >
+          <View
+            style={[
+              styles.healthRing,
+              { borderColor: healthTone },
+            ]}
+          >
+            <Text style={[styles.healthScore, { color: healthTone }]}>
+              {health.score}
+            </Text>
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.healthTitle}>
+              Salud financiera · {health.label}
+            </Text>
+            <Text style={styles.healthHint}>{health.headline}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+        </Pressable>
+
+        <View style={styles.quickRow}>
+          <Pressable
+            style={styles.quickBtn}
+            onPress={() => router.push('/budgets')}
+          >
+            <Ionicons name="pie-chart-outline" size={18} color={colors.accent} />
+            <Text style={styles.quickText}>Presupuestos</Text>
+            {budgetAlert ? (
+              <Text style={[styles.quickBadge, { color: colors.expense }]}>
+                {budgetAlert}
+              </Text>
+            ) : null}
+          </Pressable>
+          <Pressable
+            style={styles.quickBtn}
+            onPress={() => router.push('/reportes')}
+          >
+            <Ionicons name="analytics-outline" size={18} color={colors.accent} />
+            <Text style={styles.quickText}>Reportes</Text>
+          </Pressable>
         </View>
 
         <View style={styles.grid}>
@@ -371,6 +435,64 @@ function createStyles(colors: ThemeColors) {
   heroHint: {
     color: colors.textDim,
     fontSize: 13,
+  },
+  healthCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.bgElevated,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  healthRing: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthScore: {
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  healthTitle: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  healthHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    backgroundColor: colors.bgElevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  quickText: {
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  quickBadge: {
+    fontWeight: '700',
+    fontSize: 11,
   },
   grid: {
     flexDirection: 'row',

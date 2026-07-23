@@ -65,6 +65,11 @@ export interface FinanceState {
   /** Lunes de la semana a la que ya se aplicó el 20% del sábado */
   lastSaturdayBonusWeek?: string;
   fixedExpenses: FixedExpense[];
+  /**
+   * Tope mensual por categoría de gasto (id → monto).
+   * Ej: { comida: 200, ocio: 80 }
+   */
+  categoryBudgets?: Record<string, number>;
   /** ISO — último write local o nube (para merge de sync) */
   updatedAt?: string;
 }

@@ -20,6 +20,7 @@ import {
   notifyDueBillsNow,
   scheduleFixedReminders,
 } from '../lib/notifications';
+import { financeStateToCsvBundle } from '../lib/exportCsv';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
 import {
   emptyState,
@@ -100,7 +101,10 @@ interface FinanceContextValue {
   clearChat: () => void;
   resetAllData: () => Promise<void>;
   exportDataJson: () => string;
+  exportDataCsv: () => string;
   importDataJson: (raw: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  setCategoryBudget: (category: string, limit: number) => void;
+  removeCategoryBudget: (category: string) => void;
   chatting: boolean;
   syncStatus: SyncStatus;
   syncError: string | null;
@@ -120,6 +124,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     chatHistory: [],
     cashNow: 0,
     fixedExpenses: [],
+    categoryBudgets: {},
     updatedAt: new Date(0).toISOString(),
   });
   const [chatting, setChatting] = useState(false);
@@ -643,6 +648,33 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(state, null, 2);
   }, [state]);
 
+  const exportDataCsv = useCallback(() => {
+    return financeStateToCsvBundle(state);
+  }, [state]);
+
+  const setCategoryBudget = useCallback((category: string, limit: number) => {
+    const key = category.trim();
+    if (!key) return;
+    const amount = Math.round(Number(limit) * 100) / 100;
+    setState((prev) => {
+      const next = { ...(prev.categoryBudgets ?? {}) };
+      if (!Number.isFinite(amount) || amount <= 0) {
+        delete next[key];
+      } else {
+        next[key] = amount;
+      }
+      return { ...prev, categoryBudgets: next };
+    });
+  }, []);
+
+  const removeCategoryBudget = useCallback((category: string) => {
+    setState((prev) => {
+      const next = { ...(prev.categoryBudgets ?? {}) };
+      delete next[category];
+      return { ...prev, categoryBudgets: next };
+    });
+  }, []);
+
   const importDataJson = useCallback(async (raw: string) => {
     try {
       const next = parseFinanceStateJson(raw);
@@ -705,7 +737,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     clearChat,
     resetAllData,
     exportDataJson,
+    exportDataCsv,
     importDataJson,
+    setCategoryBudget,
+    removeCategoryBudget,
     chatting,
     syncStatus,
     syncError,

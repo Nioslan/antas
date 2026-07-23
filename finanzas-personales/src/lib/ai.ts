@@ -449,9 +449,11 @@ function howtoGuide(): string {
     'Para que el coach te oriente bien:',
     '1) En Movimientos cargá tus ingresos (giro) y gastos con categoría.',
     '2) En Fijos cargá renta/servicios y tocá Pagar cuando corresponda.',
-    '3) En Ahorro mirá tu colchón y el bono del sábado (podés cambiar el %).',
-    '4) En Metas poné un objetivo concreto y aportale cuando puedas.',
-    '5) Volvé al Coach y pedime un diagnóstico o un plan de 3 pasos.',
+    '3) En Presupuestos poné topes mensuales por categoría (comida, ocio, etc.).',
+    '4) En Reportes mirá el score de salud y la tendencia del mes.',
+    '5) En Ahorro mirá tu colchón y el bono del sábado (podés cambiar el %).',
+    '6) En Metas poné un objetivo concreto y aportale cuando puedas.',
+    '7) Volvé al Coach y pedime un diagnóstico o un plan de 3 pasos.',
   ].join('\n');
 }
 

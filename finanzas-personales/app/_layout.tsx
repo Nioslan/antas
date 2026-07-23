@@ -111,6 +111,22 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="budgets"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="reportes"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             presentation: 'card',

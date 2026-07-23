@@ -57,6 +57,7 @@ export default function SettingsScreen() {
     clearChat,
     resetAllData,
     exportDataJson,
+    exportDataCsv,
     importDataJson,
     state,
   } = useFinance();
@@ -193,6 +194,17 @@ export default function SettingsScreen() {
       });
     } catch {
       Alert.alert('Error', 'No se pudo exportar.');
+    }
+  };
+
+  const exportCsv = async () => {
+    try {
+      await Share.share({
+        message: exportDataCsv(),
+        title: 'finanzas-export.csv',
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo exportar el CSV.');
     }
   };
 
@@ -492,6 +504,29 @@ export default function SettingsScreen() {
           </View>
         ) : null}
 
+        {/* Herramientas */}
+        <Text style={[styles.section, { color: colors.text }]}>
+          Herramientas
+        </Text>
+        <SettingsRow
+          icon={<Ionicons name="pie-chart-outline" size={20} color={colors.accent} />}
+          title="Presupuestos"
+          subtitle="Topes mensuales por categoría"
+          onPress={() => router.push('/budgets')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="analytics-outline" size={20} color={colors.accent} />}
+          title="Reportes y score"
+          subtitle="Compará períodos y salud financiera"
+          onPress={() => router.push('/reportes')}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+
         {/* Datos */}
         <Text style={[styles.section, { color: colors.text }]}>
           {tr('sectionData')}
@@ -500,6 +535,15 @@ export default function SettingsScreen() {
           icon={<Ionicons name="share-outline" size={20} color={colors.accent} />}
           title={tr('exportData')}
           onPress={exportData}
+          right={
+            <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
+          }
+        />
+        <SettingsRow
+          icon={<Ionicons name="document-text-outline" size={20} color={colors.accent} />}
+          title="Exportar CSV"
+          subtitle="Para Excel / Google Sheets"
+          onPress={exportCsv}
           right={
             <Ionicons name="chevron-forward" size={18} color={colors.textDim} />
           }

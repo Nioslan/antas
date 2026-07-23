@@ -15,8 +15,20 @@ export const emptyState: FinanceState = {
   chatHistory: [],
   cashNow: 0,
   fixedExpenses: [],
+  categoryBudgets: {},
   updatedAt: new Date(0).toISOString(),
 };
+
+function normalizeBudgets(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(value);
+    if (!key || !Number.isFinite(n) || n <= 0) continue;
+    out[key] = Math.round(n * 100) / 100;
+  }
+  return out;
+}
 
 function normalizeFixed(list: unknown): FixedExpense[] {
   if (!Array.isArray(list)) return [];
@@ -57,6 +69,7 @@ export async function loadFinanceState(): Promise<FinanceState> {
           : 0,
       lastSaturdayBonusWeek: parsed.lastSaturdayBonusWeek,
       fixedExpenses: normalizeFixed(parsed.fixedExpenses),
+      categoryBudgets: normalizeBudgets(parsed.categoryBudgets),
       updatedAt: parsed.updatedAt ?? new Date(0).toISOString(),
     };
   } catch {
@@ -97,6 +110,7 @@ export function parseFinanceStateJson(raw: string): FinanceState {
         : 0,
     lastSaturdayBonusWeek: data.lastSaturdayBonusWeek,
     fixedExpenses: normalizeFixed(data.fixedExpenses),
+    categoryBudgets: normalizeBudgets(data.categoryBudgets),
     updatedAt: data.updatedAt ?? new Date().toISOString(),
   };
 }

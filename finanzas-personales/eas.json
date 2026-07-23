@@ -14,12 +14,26 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false,
+        "resourceClass": "m-medium"
+      }
+    },
+    "preview_simulator": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": true
       }
     },
     "production": {
       "channel": "production",
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
       }
     }
   },

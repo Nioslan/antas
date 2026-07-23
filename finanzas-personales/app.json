@@ -14,7 +14,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.finanzas.personales"
+      "bundleIdentifier": "com.finanzas.personales",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",

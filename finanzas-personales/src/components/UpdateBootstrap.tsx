@@ -10,7 +10,6 @@ import {
 import {
   applyPreparedUpdate,
   checkAndPrepareUpdate,
-  getReadyUpdateId,
   startUpdateAvailabilityWatcher,
   updatesAreSupported,
   type UpdateProgress,
@@ -19,8 +18,8 @@ import { notifyAppUpdateReady } from '../lib/notifications';
 
 /**
  * No bloquea el arranque.
- * Muestra barra de progreso al descargar, notificación + modal
- * para que el usuario elija cuándo instalar (sin perder datos).
+ * Siempre busca la ÚLTIMA update del canal (no se queda con una vieja).
+ * Barra de progreso + modal Actualizar ahora / Más tarde.
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [readyVisible, setReadyVisible] = useState(false);
@@ -46,15 +45,14 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     };
 
     const boot = async () => {
-      const existing = await getReadyUpdateId();
-      if (existing) {
-        await showReady(false);
-        return;
-      }
-
-      const result = await checkAndPrepareUpdate('es', (p) => {
-        if (!cancelled) setDownloadProgress(p);
-      });
+      // Siempre consultar el servidor (force limpia marcas viejas trabadas)
+      const result = await checkAndPrepareUpdate(
+        'es',
+        (p) => {
+          if (!cancelled) setDownloadProgress(p);
+        },
+        { force: true }
+      );
 
       if (cancelled) return;
 
@@ -63,7 +61,6 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Limpia la barra si ya estaba al día o falló
       setDownloadProgress(null);
     };
 
@@ -105,13 +102,12 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
     <>
       {children}
 
-      {/* Barra superior mientras descarga (no tapa la app) */}
       {showBar ? (
         <View style={styles.barWrap} pointerEvents="none">
           <View style={styles.barCard}>
             <Text style={styles.barTitle}>Actualizando</Text>
             <Text style={styles.barMsg}>
-              {downloadProgress?.message ?? 'Descargando…'}
+              {downloadProgress?.message ?? 'Descargando la última versión…'}
             </Text>
             <View style={styles.track}>
               <View style={[styles.fill, { width: `${Math.max(4, pct)}%` }]} />
@@ -130,10 +126,11 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
         <View style={styles.overlay}>
           <View style={styles.card}>
             <Text style={styles.brand}>Finanzas</Text>
-            <Text style={styles.title}>Actualización lista</Text>
+            <Text style={styles.title}>Última versión lista</Text>
             <Text style={styles.body}>
-              Hay una versión nueva. Podés instalarla ahora o más tarde. Tus
-              movimientos, metas y Ahorro no se borran.
+              Bajó el pack completo: sobres, deudas, reportes, presupuestos,
+              retos, calendario e informe semanal. Instalala ahora: tus datos no
+              se borran.
             </Text>
 
             {applying ? (

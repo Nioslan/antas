@@ -162,11 +162,16 @@ export default function SettingsScreen() {
 
   const checkUpdates = async () => {
     setCheckingUpdate(true);
-    setUpdateProgress({ progress: 0.05, message: 'Buscando actualización…' });
+    setUpdateProgress({ progress: 0.05, message: 'Buscando la última versión…' });
     try {
-      const result = await checkAndPrepareUpdate(language, (p) => {
-        setUpdateProgress({ progress: p.progress, message: p.message });
-      });
+      // force: no quedarse trabado con una update vieja pendiente
+      const result = await checkAndPrepareUpdate(
+        language,
+        (p) => {
+          setUpdateProgress({ progress: p.progress, message: p.message });
+        },
+        { force: true }
+      );
       if (result.status === 'readyToApply') {
         Alert.alert(tr('checkUpdates'), result.message, [
           { text: 'Más tarde', style: 'cancel' },

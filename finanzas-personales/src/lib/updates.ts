@@ -39,15 +39,13 @@ export function updatesAreSupported(): boolean {
   );
 }
 
-function resolveUpdateId(fetched?: { manifest?: unknown }): string {
-  const fromUpdates = Updates.updateId;
-  if (fromUpdates) return fromUpdates;
+/** Preferir el id del manifest DESCARGADO (no el que está corriendo). */
+function resolveFetchedUpdateId(fetched?: { manifest?: unknown }): string {
   const manifest = fetched?.manifest as { id?: string } | undefined;
   if (manifest?.id) return String(manifest.id);
   return `upd_${Date.now().toString(36)}`;
 }
 
-/** Marca en disco que hay una update lista (para mostrar el aviso). */
 export async function markUpdateReady(updateId: string): Promise<void> {
   await AsyncStorage.setItem(READY_KEY, updateId);
 }
@@ -68,10 +66,34 @@ export async function clearUpdateReadyMark(): Promise<void> {
   }
 }
 
+/** Limpia marcas locales para forzar buscar/avisar de nuevo. */
+export async function resetUpdateMarks(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([READY_KEY, NOTIFIED_KEY]);
+  } catch {
+    await clearUpdateReadyMark();
+    try {
+      await AsyncStorage.removeItem(NOTIFIED_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function noteShouldNotify(updateId: string): Promise<boolean> {
+  try {
+    const notified = await AsyncStorage.getItem(NOTIFIED_KEY);
+    if (notified === updateId) return false;
+    await AsyncStorage.setItem(NOTIFIED_KEY, updateId);
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Busca y descarga la update, pero NO reinicia.
- * El usuario decide cuándo aplicar (reload).
- * OTA = solo JS; los datos del teléfono no se borran.
+ * Siempre consulta el servidor (no se queda con una update vieja pendiente).
  */
 export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
   if (!updatesAreSupported()) return { available: false };
@@ -79,13 +101,13 @@ export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
   try {
     const check = await Updates.checkForUpdateAsync();
     if (!check.isAvailable) {
+      // Si no hay nada nuevo en el canal, limpiar marca vieja
       await clearUpdateReadyMark();
       return { available: false };
     }
 
     const fetched = await Updates.fetchUpdateAsync();
-    if (!fetched.isNew) {
-      // Puede que ya esté descargada de antes
+    if (!fetched.isNew && !fetched.manifest) {
       const existing = await getReadyUpdateId();
       if (existing) {
         return { available: true, updateId: existing, shouldNotify: false };
@@ -93,20 +115,9 @@ export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
       return { available: false };
     }
 
-    const updateId = resolveUpdateId(fetched);
+    const updateId = resolveFetchedUpdateId(fetched);
     await markUpdateReady(updateId);
-
-    let shouldNotify = true;
-    try {
-      const notified = await AsyncStorage.getItem(NOTIFIED_KEY);
-      shouldNotify = notified !== updateId;
-      if (shouldNotify) {
-        await AsyncStorage.setItem(NOTIFIED_KEY, updateId);
-      }
-    } catch {
-      shouldNotify = true;
-    }
-
+    const shouldNotify = await noteShouldNotify(updateId);
     return { available: true, updateId, shouldNotify };
   } catch {
     return { available: false };
@@ -120,12 +131,12 @@ export async function applyPreparedUpdate(): Promise<void> {
 }
 
 /**
- * Checks EAS Update, downloads it, and deja listo para que el usuario confirme.
- * Solo aplica sola si onProgress termina en applying y el caller decide.
+ * Busca + descarga la última del canal. Si force, limpia marcas locales antes.
  */
 export async function checkAndPrepareUpdate(
   language: 'es' | 'en' = 'es',
-  onProgress?: (p: UpdateProgress) => void
+  onProgress?: (p: UpdateProgress) => void,
+  options?: { force?: boolean }
 ): Promise<UpdateCheckResult> {
   const es = language === 'es';
 
@@ -148,15 +159,20 @@ export async function checkAndPrepareUpdate(
   }
 
   try {
+    if (options?.force) {
+      await resetUpdateMarks();
+    }
+
     onProgress?.({
       phase: 'checking',
       progress: 0.08,
-      message: es ? 'Buscando actualización…' : 'Checking for update…',
+      message: es ? 'Buscando la última versión…' : 'Checking for update…',
     });
 
     const result = await Updates.checkForUpdateAsync();
     if (!result.isAvailable) {
       await clearUpdateReadyMark();
+      const meta = getUpdateMeta();
       onProgress?.({
         phase: 'checking',
         progress: 1,
@@ -165,8 +181,8 @@ export async function checkAndPrepareUpdate(
       return {
         status: 'upToDate',
         message: es
-          ? 'Ya tenés la última versión disponible.'
-          : 'You already have the latest version.',
+          ? `Ya tenés la última versión.\nCanal: ${meta.channel}\nRuntime: ${meta.runtimeVersion}`
+          : `You already have the latest version.\nChannel: ${meta.channel}`,
         current: Updates.updateId ?? undefined,
       };
     }
@@ -174,7 +190,7 @@ export async function checkAndPrepareUpdate(
     onProgress?.({
       phase: 'downloading',
       progress: 0.2,
-      message: es ? 'Descargando actualización…' : 'Downloading update…',
+      message: es ? 'Descargando la última versión…' : 'Downloading update…',
     });
 
     let fake = 0.2;
@@ -183,39 +199,16 @@ export async function checkAndPrepareUpdate(
       onProgress?.({
         phase: 'downloading',
         progress: fake,
-        message: es ? 'Descargando actualización…' : 'Downloading update…',
+        message: es ? 'Descargando la última versión…' : 'Downloading update…',
       });
     }, 350);
 
     const fetched = await Updates.fetchUpdateAsync();
     clearInterval(tick);
 
-    if (!fetched.isNew) {
-      const existing = await getReadyUpdateId();
-      if (existing) {
-        onProgress?.({
-          phase: 'applying',
-          progress: 1,
-          message: es ? 'Actualización lista.' : 'Update ready.',
-        });
-        return {
-          status: 'readyToApply',
-          message: es
-            ? 'Hay una actualización lista. ¿Querés instalarla ahora? Tus datos no se borran.'
-            : 'An update is ready. Install now? Your data is kept.',
-          updateId: existing,
-        };
-      }
-      return {
-        status: 'upToDate',
-        message: es
-          ? 'Ya tenés la última versión disponible.'
-          : 'You already have the latest version.',
-      };
-    }
-
-    const updateId = resolveUpdateId(fetched);
+    const updateId = resolveFetchedUpdateId(fetched);
     await markUpdateReady(updateId);
+    await noteShouldNotify(updateId);
 
     onProgress?.({
       phase: 'applying',
@@ -226,8 +219,8 @@ export async function checkAndPrepareUpdate(
     return {
       status: 'readyToApply',
       message: es
-        ? 'Hay una actualización lista. ¿Querés instalarla ahora? Tus datos no se borran.'
-        : 'An update is ready. Install now? Your data is kept.',
+        ? 'Ya bajó la última versión (sobres, deudas, reportes, etc.). Tocá Actualizar ahora. Tus datos no se borran.'
+        : 'Latest update downloaded. Install now? Your data is kept.',
       updateId,
     };
   } catch (e) {
@@ -246,7 +239,7 @@ export async function checkAndApplyUpdate(
   language: 'es' | 'en' = 'es',
   onProgress?: (p: UpdateProgress) => void
 ): Promise<UpdateCheckResult> {
-  return checkAndPrepareUpdate(language, onProgress);
+  return checkAndPrepareUpdate(language, onProgress, { force: true });
 }
 
 /**
@@ -262,8 +255,8 @@ export function startUpdateAvailabilityWatcher(
 
   let lastCheck = 0;
   let running = false;
-  const MIN_MS = 90 * 1000;
-  const PERIODIC_MS = 15 * 60 * 1000;
+  const MIN_MS = 45 * 1000;
+  const PERIODIC_MS = 10 * 60 * 1000;
 
   const runCheck = () => {
     const now = Date.now();
@@ -288,7 +281,7 @@ export function startUpdateAvailabilityWatcher(
     if (state === 'active') runCheck();
   };
 
-  const bootTimer = setTimeout(runCheck, 2500);
+  const bootTimer = setTimeout(runCheck, 2000);
   const periodic = setInterval(() => {
     if (AppState.currentState === 'active') runCheck();
   }, PERIODIC_MS);

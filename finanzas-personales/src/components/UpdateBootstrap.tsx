@@ -1,22 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  InteractionManager,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import {
-  applyPreparedUpdate,
-  checkAndPrepareUpdate,
-  startUpdateAvailabilityWatcher,
-  updatesAreSupported,
-  type UpdateProgress,
-} from '../lib/updates';
-import { notifyAppUpdateReady } from '../lib/notifications';
+import type { UpdateProgress } from '../lib/updates';
 
 const BOOT_CHECK_TIMEOUT_MS = 12000;
+const BOOT_DELAY_MS = 5000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return new Promise((resolve) => {
@@ -35,7 +30,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 
 /**
  * No bloquea el arranque.
- * Busca updates en segundo plano con timeout (nunca deja la app en negro).
+ * Carga expo-updates solo después de que la UI ya abrió.
  */
 export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [readyVisible, setReadyVisible] = useState(false);
@@ -43,21 +38,22 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const [downloadProgress, setDownloadProgress] = useState<UpdateProgress | null>(
     null
   );
-  const skipUpdates = !updatesAreSupported();
   const started = useRef(false);
 
   useEffect(() => {
-    if (skipUpdates) return;
     if (started.current) return;
     started.current = true;
 
     let cancelled = false;
+    let stopWatcher: (() => void) | undefined;
+    let delayTimer: ReturnType<typeof setTimeout> | undefined;
 
     const showReady = async (notify: boolean) => {
       if (cancelled) return;
       setDownloadProgress(null);
       if (notify) {
         try {
+          const { notifyAppUpdateReady } = await import('../lib/notifications');
           await notifyAppUpdateReady();
         } catch {
           // ignore
@@ -68,8 +64,11 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 
     const boot = async () => {
       try {
+        const updates = await import('../lib/updates');
+        if (!updates.updatesAreSupported()) return;
+
         const result = await withTimeout(
-          checkAndPrepareUpdate(
+          updates.checkAndPrepareUpdate(
             'es',
             (p) => {
               if (!cancelled) setDownloadProgress(p);
@@ -83,8 +82,14 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
 
         if (result?.status === 'readyToApply') {
           await showReady(true);
-          return;
         }
+
+        stopWatcher = updates.startUpdateAvailabilityWatcher(() => {
+          if (!cancelled) {
+            setDownloadProgress(null);
+            setReadyVisible(true);
+          }
+        });
       } catch {
         // Nunca tumbar el arranque por updates
       } finally {
@@ -92,21 +97,19 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
       }
     };
 
-    void boot();
-
-    const stop = startUpdateAvailabilityWatcher((updateId) => {
-      if (!cancelled) {
-        setDownloadProgress(null);
-        setReadyVisible(true);
-      }
-      void updateId;
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      delayTimer = setTimeout(() => {
+        if (!cancelled) void boot();
+      }, BOOT_DELAY_MS);
     });
 
     return () => {
       cancelled = true;
-      stop();
+      interaction.cancel?.();
+      if (delayTimer) clearTimeout(delayTimer);
+      stopWatcher?.();
     };
-  }, [skipUpdates]);
+  }, []);
 
   const onLater = () => {
     setApplying(false);
@@ -116,6 +119,7 @@ export function UpdateBootstrap({ children }: { children: ReactNode }) {
   const onApply = async () => {
     setApplying(true);
     try {
+      const { applyPreparedUpdate } = await import('../lib/updates');
       const ok = await withTimeout(applyPreparedUpdate(), 8000);
       if (ok === null) {
         setApplying(false);

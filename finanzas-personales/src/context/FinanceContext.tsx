@@ -15,11 +15,6 @@ import {
   pushToCloud,
 } from '../lib/cloudSync';
 import { learnFromTransaction } from '../lib/fixedExpenses';
-import {
-  cancelFixedReminders,
-  notifyDueBillsNow,
-  scheduleFixedReminders,
-} from '../lib/notifications';
 import { financeStateToCsvBundle } from '../lib/exportCsv';
 import { applySaturdayBonusIfDue } from '../lib/saturdayBonus';
 import {
@@ -31,6 +26,7 @@ import {
 import { summarizeCapital, summarizeDay } from '../lib/summary';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
+import { InteractionManager } from 'react-native';
 import type {
   AllocationRule,
   CapitalSummary,
@@ -297,9 +293,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           : { state: loaded };
         setState(withBonus);
         setReady(true);
-        if (settings.notificationsEnabled) {
-          void scheduleFixedReminders(withBonus.fixedExpenses);
-        }
+        // Notificaciones: después del primer paint (no en el boot).
       })
       .catch(() => {
         if (!cancelled) setReady(true);
@@ -392,13 +386,31 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    if (!settings.notificationsEnabled) {
-      void cancelFixedReminders();
-      return;
-    }
-    void scheduleFixedReminders(state.fixedExpenses);
-    // Aviso inmediato (una vez al día) si hay fijos por pagar pronto
-    void notifyDueBillsNow(state.fixedExpenses);
+    let cancelled = false;
+    let delayTimer: ReturnType<typeof setTimeout> | undefined;
+    const task = InteractionManager.runAfterInteractions(() => {
+      delayTimer = setTimeout(() => {
+        if (cancelled) return;
+        void (async () => {
+          try {
+            const n = await import('../lib/notifications');
+            if (!settings.notificationsEnabled) {
+              await n.cancelFixedReminders();
+              return;
+            }
+            await n.scheduleFixedReminders(state.fixedExpenses);
+            await n.notifyDueBillsNow(state.fixedExpenses);
+          } catch {
+            // Nunca tumbar la app por avisos
+          }
+        })();
+      }, 2500);
+    });
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+      if (delayTimer) clearTimeout(delayTimer);
+    };
   }, [ready, settings.notificationsEnabled, state.fixedExpenses]);
 
   const today = useMemo(
@@ -671,7 +683,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshFixedReminders = useCallback(async () => {
-    await scheduleFixedReminders(state.fixedExpenses);
+    try {
+      const n = await import('../lib/notifications');
+      await n.scheduleFixedReminders(state.fixedExpenses);
+    } catch {
+      // ignore
+    }
   }, [state.fixedExpenses]);
 
   const sendChat = useCallback(

@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import type { FinanceState } from '../types/finance';
 import { DEFAULT_ALLOCATION } from '../types/finance';
@@ -9,6 +8,8 @@ const DATA_KEY = 'finanzas:taller:v1';
 /** SecureStore en Android solo permite [A-Za-z0-9._-]. El nombre viejo con ":" fallaba. */
 const API_KEY = 'finanzas_openai_key';
 const API_KEY_LEGACY = 'finanzas:openai_key';
+
+type SecureStoreModule = typeof import('expo-secure-store');
 
 export const emptyState: FinanceState = {
   transactions: [],
@@ -70,18 +71,21 @@ export function parseFinanceStateJson(raw: string): FinanceState {
   });
 }
 
-async function useSecureStore(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+async function getSecureStore(): Promise<SecureStoreModule | null> {
+  if (Platform.OS === 'web') return null;
   try {
-    return await SecureStore.isAvailableAsync();
+    const SecureStore = await import('expo-secure-store');
+    const ok = await SecureStore.isAvailableAsync();
+    return ok ? SecureStore : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
 export async function getOpenAiKey(): Promise<string | null> {
   try {
-    if (await useSecureStore()) {
+    const SecureStore = await getSecureStore();
+    if (SecureStore) {
       const modern = await SecureStore.getItemAsync(API_KEY);
       if (modern) return modern;
       try {
@@ -119,10 +123,10 @@ export async function setOpenAiKey(key: string): Promise<void> {
     .replace(/\s+/g, '')
     .replace(/^Bearer/i, '');
 
-  const secure = await useSecureStore();
+  const SecureStore = await getSecureStore();
 
   if (!cleaned) {
-    if (secure) {
+    if (SecureStore) {
       try {
         await SecureStore.deleteItemAsync(API_KEY);
       } catch {
@@ -136,7 +140,7 @@ export async function setOpenAiKey(key: string): Promise<void> {
 
   await AsyncStorage.setItem(API_KEY, cleaned);
 
-  if (secure) {
+  if (SecureStore) {
     try {
       await SecureStore.setItemAsync(API_KEY, cleaned);
     } catch (err) {

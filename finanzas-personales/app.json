@@ -2,7 +2,7 @@
   "expo": {
     "name": "Finanzas Personales",
     "slug": "finanzas-personales",
-    "version": "1.7.1",
+    "version": "1.8.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finanzas.personales",
-      "buildNumber": "18",
+      "buildNumber": "19",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["remote-notification"]
@@ -31,7 +31,7 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "backgroundColor": "#0B1F1A",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -77,7 +77,9 @@
       ]
     ],
     "extra": {
-      "router": {},
+      "router": {
+        "asyncRoutes": true
+      },
       "eas": {
         "projectId": "95204b8e-edf0-4b6e-a264-33229eda2f0b"
       }

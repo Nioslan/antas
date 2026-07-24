@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import Constants from 'expo-constants';
-import * as Updates from 'expo-updates';
-import { notifyAppUpdateReady } from './notifications';
 
 export type UpdateCheckResult =
   | { status: 'dev'; message: string }
@@ -31,12 +29,41 @@ export const TESTERS_UPDATE_CHANNEL = 'preview';
 const READY_KEY = 'finanzas_update_ready_id';
 const NOTIFIED_KEY = 'finanzas_update_notified_id';
 
+type UpdatesModule = typeof import('expo-updates');
+
+let updatesModule: UpdatesModule | null | undefined;
+
+/**
+ * Check liviano SIN tocar el módulo nativo.
+ * El nativo se carga solo al buscar/aplicar updates.
+ */
 export function updatesAreSupported(): boolean {
-  return (
-    !__DEV__ &&
-    Constants.appOwnership !== 'expo' &&
-    Updates.isEnabled
-  );
+  return !__DEV__ && Constants.appOwnership !== 'expo';
+}
+
+async function getUpdates(): Promise<UpdatesModule | null> {
+  if (updatesModule !== undefined) return updatesModule;
+  try {
+    const mod = await import('expo-updates');
+    if (!mod.isEnabled) {
+      updatesModule = null;
+      return null;
+    }
+    updatesModule = mod;
+    return mod;
+  } catch {
+    updatesModule = null;
+    return null;
+  }
+}
+
+async function notifyReadySafe(): Promise<void> {
+  try {
+    const { notifyAppUpdateReady } = await import('./notifications');
+    await notifyAppUpdateReady();
+  } catch {
+    // ignore
+  }
 }
 
 /** Preferir el id del manifest DESCARGADO (no el que está corriendo). */
@@ -99,9 +126,11 @@ export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
   if (!updatesAreSupported()) return { available: false };
 
   try {
+    const Updates = await getUpdates();
+    if (!Updates) return { available: false };
+
     const check = await Updates.checkForUpdateAsync();
     if (!check.isAvailable) {
-      // Si no hay nada nuevo en el canal, limpiar marca vieja
       await clearUpdateReadyMark();
       return { available: false };
     }
@@ -127,6 +156,10 @@ export async function prepareAvailableUpdate(): Promise<PreparedUpdate> {
 /** Aplica la update ya descargada (reinicia la app). Datos intactos. */
 export async function applyPreparedUpdate(): Promise<true> {
   await clearUpdateReadyMark();
+  const Updates = await getUpdates();
+  if (!Updates) {
+    throw new Error('Updates no disponible en este build');
+  }
   await Updates.reloadAsync();
   return true;
 }
@@ -150,7 +183,8 @@ export async function checkAndPrepareUpdate(
     };
   }
 
-  if (!Updates.isEnabled) {
+  const Updates = await getUpdates();
+  if (!Updates) {
     return {
       status: 'unavailable',
       message: es
@@ -269,7 +303,7 @@ export function startUpdateAvailabilityWatcher(
         const prep = await prepareAvailableUpdate();
         if (!prep.available || !prep.updateId) return;
         if (prep.shouldNotify) {
-          await notifyAppUpdateReady();
+          await notifyReadySafe();
         }
         onReady(prep.updateId);
       } finally {
@@ -282,7 +316,8 @@ export function startUpdateAvailabilityWatcher(
     if (state === 'active') runCheck();
   };
 
-  const bootTimer = setTimeout(runCheck, 2000);
+  // Esperar a que la UI abra antes de tocar el nativo de updates
+  const bootTimer = setTimeout(runCheck, 8000);
   const periodic = setInterval(() => {
     if (AppState.currentState === 'active') runCheck();
   }, PERIODIC_MS);
@@ -296,6 +331,15 @@ export function startUpdateAvailabilityWatcher(
 }
 
 export function getUpdateMeta() {
+  const Updates = updatesModule ?? null;
+  if (!Updates) {
+    return {
+      channel: TESTERS_UPDATE_CHANNEL,
+      runtimeVersion: Constants.expoConfig?.version ?? '—',
+      updateId: '—',
+      isEmbedded: true,
+    };
+  }
   return {
     channel: Updates.channel ?? '—',
     runtimeVersion: Updates.runtimeVersion ?? '—',

@@ -26,7 +26,6 @@ import {
 import { summarizeCapital, summarizeDay } from '../lib/summary';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
-import { InteractionManager } from 'react-native';
 import type {
   AllocationRule,
   CapitalSummary,
@@ -384,34 +383,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [online, ready, syncNow, syncStatus, user]);
 
-  useEffect(() => {
-    if (!ready) return;
-    let cancelled = false;
-    let delayTimer: ReturnType<typeof setTimeout> | undefined;
-    const task = InteractionManager.runAfterInteractions(() => {
-      delayTimer = setTimeout(() => {
-        if (cancelled) return;
-        void (async () => {
-          try {
-            const n = await import('../lib/notifications');
-            if (!settings.notificationsEnabled) {
-              await n.cancelFixedReminders();
-              return;
-            }
-            await n.scheduleFixedReminders(state.fixedExpenses);
-            await n.notifyDueBillsNow(state.fixedExpenses);
-          } catch {
-            // Nunca tumbar la app por avisos
-          }
-        })();
-      }, 2500);
-    });
-    return () => {
-      cancelled = true;
-      task.cancel?.();
-      if (delayTimer) clearTimeout(delayTimer);
-    };
-  }, [ready, settings.notificationsEnabled, state.fixedExpenses]);
+  // No programar notificaciones en el arranque.
+  // Se activan desde Fijos/Ajustes (refreshFixedReminders) para no crashear Android.
 
   const today = useMemo(
     () => summarizeDay(state.transactions),

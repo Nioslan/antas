@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,28 +11,6 @@ import { SettingsProvider, useSettings } from '../src/context/SettingsContext';
 import { installWebFontSafety } from '../src/lib/webFontSafety';
 
 installWebFontSafety();
-
-function hideNativeSplash() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const splash = require('expo-router/build/utils/splash') as {
-      hideAsync?: () => Promise<void>;
-      hide?: () => void;
-    };
-    if (splash.hideAsync) void splash.hideAsync();
-    else splash.hide?.();
-  } catch {
-    // sin splash nativo
-  }
-}
-
-function HideSplash() {
-  useEffect(() => {
-    const t = setTimeout(hideNativeSplash, 50);
-    return () => clearTimeout(t);
-  }, []);
-  return null;
-}
 
 class RootErrorBoundary extends Component<
   { children: ReactNode },
@@ -208,7 +186,6 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <RootErrorBoundary>
-        <HideSplash />
         <UpdateBootstrap>
           <SettingsProvider>
             <AuthProvider>

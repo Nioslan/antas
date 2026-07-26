@@ -32,7 +32,8 @@ export const defaultSettings: AppSettings = {
   themeMode: 'system',
   language: 'es',
   currency: 'USD',
-  notificationsEnabled: true,
+  // Off por defecto: evita tocar expo-notifications al primer arranque en Android.
+  notificationsEnabled: false,
   hapticsEnabled: true,
   saturdayBonusEnabled: true,
   saturdayBonusPercent: 20,

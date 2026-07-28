@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "812081659477",
+    "project_id": "finanzas-personales-21465",
+    "storage_bucket": "finanzas-personales-21465.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:812081659477:android:PEGA_AQUI_EL_APP_ID",
+        "android_client_info": {
+          "package_name": "com.finanzas.personales"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArotLvvsAGQ7ei8hoZUEl-QWH3wEUrGa8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Appearance, type ColorSchemeName } from 'react-native';
+import { Appearance, Platform, type ColorSchemeName } from 'react-native';
 import {
   CURRENCY_OPTIONS,
   t,
@@ -85,6 +85,8 @@ function resolveScheme(
   mode: ThemeMode,
   system: ColorSchemeName
 ): 'light' | 'dark' {
+  // Web: tema claro por defecto para no ver “pantalla oscura”.
+  if (Platform.OS === 'web' && mode === 'system') return 'light';
   if (mode === 'light') return 'light';
   if (mode === 'dark') return 'dark';
   return system === 'light' ? 'light' : 'dark';

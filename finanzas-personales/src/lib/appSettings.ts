@@ -29,7 +29,7 @@ export type AppSettings = {
 };
 
 export const defaultSettings: AppSettings = {
-  themeMode: 'system',
+  themeMode: 'light',
   language: 'es',
   currency: 'USD',
   // Off por defecto: evita tocar expo-notifications al primer arranque en Android.

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Finanzas Personales",
     "slug": "finanzas-personales",
-    "version": "1.8.1",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,15 +11,14 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B1F1A"
+      "backgroundColor": "#F2F7F4"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finanzas.personales",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -32,7 +31,7 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 20,
+      "versionCode": 21,
       "adaptiveIcon": {
         "backgroundColor": "#0B1F1A",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -41,10 +40,7 @@
       },
       "package": "com.finanzas.personales",
       "permissions": [
-        "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.READ_MEDIA_IMAGES"
       ]
     },
@@ -55,21 +51,13 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/95204b8e-edf0-4b6e-a264-33229eda2f0b",
+      "enabled": false,
       "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-updates",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#E24B3C"
-        }
-      ],
       [
         "expo-image-picker",
         {

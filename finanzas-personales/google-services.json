@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "812081659477",
+    "project_id": "finanzas-personales-21465",
+    "storage_bucket": "finanzas-personales-21465.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:812081659477:android:b50057f95a2dfcf07ededc",
+        "android_client_info": {
+          "package_name": "com.llc.finanzaspersonales"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "812081659477-j0s6vg9elk2mp1q4fgpg5upudjlg70j3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0_zRlluwrfTAe3BB71RwxzBQv4bDL5co"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "812081659477-j0s6vg9elk2mp1q4fgpg5upudjlg70j3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

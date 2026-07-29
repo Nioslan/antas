@@ -1,15 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import type { FinanceState } from '../types/finance';
 import { DEFAULT_ALLOCATION } from '../types/finance';
 import { normalizeFinancePartial } from './normalizeFinance';
 
-const DATA_KEY = 'antas:finance:v1';
-/** SecureStore en Android solo permite [A-Za-z0-9._-]. */
-const API_KEY = 'antas_openai_key';
-const API_KEY_LEGACY = 'antas_openai_key_legacy';
-
-type SecureStoreModule = typeof import('expo-secure-store');
+const DATA_KEY = 'finanzas:finance:v1';
+const DATA_KEY_LEGACY = 'antas:finance:v1';
+const API_KEY = 'finanzas_openai_key';
+const API_KEY_LEGACY = ['antas_openai_key', 'antas_openai_key_legacy'];
 
 export const emptyState: FinanceState = {
   transactions: [],
@@ -29,7 +26,9 @@ export const emptyState: FinanceState = {
 
 export async function loadFinanceState(): Promise<FinanceState> {
   try {
-    const raw = await AsyncStorage.getItem(DATA_KEY);
+    const raw =
+      (await AsyncStorage.getItem(DATA_KEY)) ??
+      (await AsyncStorage.getItem(DATA_KEY_LEGACY));
     if (!raw) return emptyState;
     const parsed = JSON.parse(raw) as Partial<FinanceState>;
     return normalizeFinancePartial(parsed);
@@ -62,7 +61,7 @@ export function parseFinanceStateJson(raw: string): FinanceState {
     !Array.isArray(data.fixedExpenses)
   ) {
     throw new Error(
-      'No parece un respaldo de Antas (faltan movimientos/metas/fijos).'
+      'No parece un respaldo de Finanzas Personales (faltan movimientos/metas/fijos).'
     );
   }
   return normalizeFinancePartial({
@@ -71,48 +70,20 @@ export function parseFinanceStateJson(raw: string): FinanceState {
   });
 }
 
-async function getSecureStore(): Promise<SecureStoreModule | null> {
-  if (Platform.OS === 'web') return null;
-  try {
-    const SecureStore = await import('expo-secure-store');
-    const ok = await SecureStore.isAvailableAsync();
-    return ok ? SecureStore : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getOpenAiKey(): Promise<string | null> {
   try {
-    const SecureStore = await getSecureStore();
-    if (SecureStore) {
-      const modern = await SecureStore.getItemAsync(API_KEY);
-      if (modern) return modern;
-      try {
-        const legacy = await SecureStore.getItemAsync(API_KEY_LEGACY);
-        if (legacy) {
-          await SecureStore.setItemAsync(API_KEY, legacy);
-          try {
-            await SecureStore.deleteItemAsync(API_KEY_LEGACY);
-          } catch {
-            // ignore
-          }
-          return legacy;
-        }
-      } catch {
-        // ignore legacy read errors
+    const modern = await AsyncStorage.getItem(API_KEY);
+    if (modern) return modern;
+    for (const legacy of API_KEY_LEGACY) {
+      const value = await AsyncStorage.getItem(legacy);
+      if (value) {
+        await AsyncStorage.setItem(API_KEY, value);
+        return value;
       }
     }
-    return (
-      (await AsyncStorage.getItem(API_KEY)) ??
-      (await AsyncStorage.getItem(API_KEY_LEGACY))
-    );
+    return null;
   } catch {
-    try {
-      return await AsyncStorage.getItem(API_KEY);
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
@@ -123,28 +94,13 @@ export async function setOpenAiKey(key: string): Promise<void> {
     .replace(/\s+/g, '')
     .replace(/^Bearer/i, '');
 
-  const SecureStore = await getSecureStore();
-
   if (!cleaned) {
-    if (SecureStore) {
-      try {
-        await SecureStore.deleteItemAsync(API_KEY);
-      } catch {
-        // ignore
-      }
-    }
     await AsyncStorage.removeItem(API_KEY);
-    await AsyncStorage.removeItem(API_KEY_LEGACY);
+    for (const legacy of API_KEY_LEGACY) {
+      await AsyncStorage.removeItem(legacy);
+    }
     return;
   }
 
   await AsyncStorage.setItem(API_KEY, cleaned);
-
-  if (SecureStore) {
-    try {
-      await SecureStore.setItemAsync(API_KEY, cleaned);
-    } catch (err) {
-      console.warn('SecureStore setOpenAiKey failed, using AsyncStorage', err);
-    }
-  }
 }

@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   emptyText: {
-    fontFamily: 'DMSans_400Regular',
+    
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   goalAmounts: {
-    fontFamily: 'DMSans_500Medium',
+    
     color: colors.textMuted,
     fontSize: 14,
   },
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   pct: {
-    fontFamily: 'DMSans_700Bold',
+    
     color: colors.accent,
     fontSize: 13,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.sm,
     color: colors.text,
-    fontFamily: 'DMSans_400Regular',
+    
     paddingHorizontal: 12,
     paddingVertical: 10,
   },

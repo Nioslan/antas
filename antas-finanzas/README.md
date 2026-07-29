@@ -1,21 +1,14 @@
 # Finanzas Personales
 
-App Android (Expo) — paquete `com.antas.finanzas`.
+App Android (Expo) v2.0.0 — paquete `com.finanzas.personales`.
 
-## Pantallas
+## Qué incluye
 
-- **Inicio** — resumen del mes, saldo, accesos rápidos
-- **Ahorro** — metas y progreso de ahorro
-- **Movimientos** — ingresos y gastos diarios
-- **Fijos** — gastos fijos / facturas
-- **Coach** — chat con IA que usa tus movimientos como contexto (asesor financiero)
+- Inicio, Ahorro, Movimientos, Fijos, Metas, Asesor IA
+- Datos solo en el teléfono
+- Arranque estable: sin notifications, updates, Firebase, image-picker ni SecureStore nativos
 
-## Datos
-
-- Guardados en el teléfono (AsyncStorage)
-- Coach local sin API; si agregás una clave OpenAI en Ajustes, usa GPT
-
-## Local (revisar en el navegador)
+## Local
 
 ```bash
 cd antas-finanzas
@@ -23,9 +16,8 @@ npm install
 npx expo start --web
 ```
 
-## APK (cuando lo pidas)
+## APK
 
 ```bash
-cd antas-finanzas
 npm run build:preview
 ```

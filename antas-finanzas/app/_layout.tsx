@@ -1,4 +1,3 @@
-import 'react-native-gesture-handler';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
@@ -8,10 +7,11 @@ import { UpdateBootstrap } from '../src/components/UpdateBootstrap';
 import { AuthProvider } from '../src/context/AuthContext';
 import { FinanceProvider } from '../src/context/FinanceContext';
 import { SettingsProvider, useSettings } from '../src/context/SettingsContext';
-import { installWebFontSafety } from '../src/lib/webFontSafety';
 
-installWebFontSafety();
-
+/**
+ * Root 2.0.0: arranque mínimo.
+ * Sin gesture-handler side-effect, sin webFontSafety, sin nativos al boot.
+ */
 class RootErrorBoundary extends Component<
   { children: ReactNode },
   { error: Error | null }
@@ -32,28 +32,28 @@ class RootErrorBoundary extends Component<
         <View
           style={{
             flex: 1,
-            backgroundColor: '#0B1F1A',
+            backgroundColor: '#F2F7F4',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
             gap: 12,
           }}>
-          <Text style={{ color: '#F2F7F4', fontSize: 18, fontWeight: '700' }}>
+          <Text style={{ color: '#0F241E', fontSize: 18, fontWeight: '700' }}>
             Algo falló al abrir la app
           </Text>
-          <Text style={{ color: '#9BB5AB', textAlign: 'center' }}>
+          <Text style={{ color: '#5A7268', textAlign: 'center' }}>
             {this.state.error.message}
           </Text>
           <Pressable
             onPress={() => this.setState({ error: null })}
             style={{
               marginTop: 8,
-              backgroundColor: '#3DDC97',
+              backgroundColor: '#0F9F6E',
               paddingHorizontal: 16,
               paddingVertical: 12,
               borderRadius: 12,
             }}>
-            <Text style={{ color: '#0B1F1A', fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Reintentar</Text>
           </Pressable>
         </View>
       );

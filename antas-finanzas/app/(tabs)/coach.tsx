@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   clearText: {
-    fontFamily: 'DMSans_500Medium',
+    
     color: colors.textMuted,
     fontSize: 13,
   },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   welcomeBody: {
-    fontFamily: 'DMSans_400Regular',
+    
     color: colors.textMuted,
     lineHeight: 22,
   },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   suggestionText: {
-    fontFamily: 'DMSans_500Medium',
+    
     color: colors.accent,
     fontSize: 13,
   },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   bubbleText: {
-    fontFamily: 'DMSans_400Regular',
+    
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   typingText: {
-    fontFamily: 'DMSans_400Regular',
+    
     color: colors.textMuted,
   },
   composer: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     color: colors.text,
-    fontFamily: 'DMSans_400Regular',
+    
     paddingHorizontal: 14,
     paddingVertical: 10,
   },

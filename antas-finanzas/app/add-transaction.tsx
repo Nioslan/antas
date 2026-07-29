@@ -128,41 +128,10 @@ export default function AddTransactionScreen() {
   };
 
   const pickReceipt = async () => {
-    try {
-      // Import diferido: no tumba el arranque si el APK viejo no trae el módulo nativo.
-      const ImagePicker = await import('expo-image-picker');
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(
-          'Permiso',
-          'Necesitamos acceso a tus fotos para adjuntar el ticket.'
-        );
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.35,
-        base64: true,
-        allowsEditing: true,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      if (asset.base64) {
-        const uri = `data:image/jpeg;base64,${asset.base64}`;
-        if (uri.length > 900_000) {
-          Alert.alert(
-            'Foto grande',
-            'Elegí una imagen más chica o recortá el ticket.'
-          );
-          return;
-        }
-        setReceiptUri(uri);
-      } else if (asset.uri) {
-        setReceiptUri(asset.uri);
-      }
-    } catch {
-      Alert.alert('Error', 'No se pudo abrir la galería.');
-    }
+    Alert.alert(
+      'Tickets',
+      'En esta versión estable los tickets con foto están desactivados para evitar el cierre al abrir. Podés anotar el gasto en la nota.'
+    );
   };
 
   return (

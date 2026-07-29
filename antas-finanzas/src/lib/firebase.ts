@@ -1,53 +1,15 @@
-import { Platform } from 'react-native';
-import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, initializeAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
-
-import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig';
-
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-
-function ensureApp(): FirebaseApp {
-  if (!isFirebaseConfigured()) {
-    throw new Error(
-      'Firebase no está configurado. Completá src/lib/firebaseConfig.ts (ver FIREBASE_SETUP.md).',
-    );
-  }
-  if (!app) {
-    app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  }
-  return app;
+/**
+ * Firebase desactivado en 2.0.0 para estabilizar el arranque Android.
+ * No se importa el SDK nativo/JS de Firebase.
+ */
+export function isFirebaseConfigured(): boolean {
+  return false;
 }
 
-export function getFirebaseAuth(): Auth {
-  if (auth) return auth;
-  const firebaseApp = ensureApp();
-
-  if (Platform.OS === 'web') {
-    auth = getAuth(firebaseApp);
-    return auth;
-  }
-
-  // Evitar getReactNativePersistence (puede tumbar builds vía OTA).
-  // getAuth/initializeAuth sin opciones extra es más estable.
-  try {
-    auth = getAuth(firebaseApp);
-  } catch {
-    try {
-      auth = initializeAuth(firebaseApp);
-    } catch {
-      auth = getAuth(firebaseApp);
-    }
-  }
-  return auth;
+export function getFirebaseAuth(): never {
+  throw new Error('Firebase desactivado en esta versión.');
 }
 
-export function getFirebaseDb(): Firestore {
-  if (db) return db;
-  db = getFirestore(ensureApp());
-  return db;
+export function getFirebaseDb(): never {
+  throw new Error('Firebase desactivado en esta versión.');
 }
-
-export { isFirebaseConfigured };

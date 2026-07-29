@@ -42,9 +42,9 @@ import { spacing } from '../src/theme';
 const KEYS_URL = 'https://platform.openai.com/api-keys';
 const SUPPORT_EMAIL = 'antasestudio@gmail.com';
 const HELP_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-  'Antas — queja o felicitación'
+  'Finanzas Personales — queja o felicitación'
 )}&body=${encodeURIComponent(
-  'Hola Antas,\n\nEscribo para:\n( ) Queja\n( ) Felicitación\n\nMensaje:\n'
+  'Hola,\n\nEscribo para:\n( ) Queja\n( ) Felicitación\n\nMensaje:\n'
 )}`;
 const APP_VERSION =
   Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
@@ -656,7 +656,7 @@ export default function SettingsScreen() {
           onPress={() =>
             Alert.alert(
               tr('privacy'),
-              'Movimientos, metas y efectivo se guardan solo en este teléfono. Podés exportar o importar un respaldo local desde Datos. La API key de OpenAI queda en el dispositivo (SecureStore).'
+              'Movimientos, metas y efectivo se guardan solo en este teléfono. Podés exportar o importar un respaldo local desde Datos. La API key de OpenAI queda en el dispositivo.'
             )
           }
           right={

@@ -48,7 +48,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textDim,
         tabBarLabelStyle: {
-          fontFamily: 'DMSans_500Medium',
+          
           fontSize: 11,
         },
       }}

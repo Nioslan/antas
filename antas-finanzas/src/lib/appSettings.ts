@@ -7,7 +7,8 @@ import {
 } from './categories';
 import { clampBonusPercent } from './saturdayBonus';
 
-const SETTINGS_KEY = 'antas:settings:v1';
+const SETTINGS_KEY = 'finanzas:settings:v1';
+const SETTINGS_KEY_LEGACY = 'antas:settings:v1';
 
 export type AppSettings = {
   themeMode: ThemeMode;
@@ -80,7 +81,9 @@ export function applyCategoryConfigToRuntime(settings: AppSettings): void {
 
 export async function loadAppSettings(): Promise<AppSettings> {
   try {
-    const raw = await AsyncStorage.getItem(SETTINGS_KEY);
+    const raw =
+      (await AsyncStorage.getItem(SETTINGS_KEY)) ??
+      (await AsyncStorage.getItem(SETTINGS_KEY_LEGACY));
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {

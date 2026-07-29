@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancel: {
-    fontFamily: 'DMSans_500Medium',
+    
     color: colors.textMuted,
   },
 });

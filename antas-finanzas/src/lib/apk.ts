@@ -3,4 +3,4 @@
  * Build limpio sin notifications/updates/image-picker/secure-store/firebase.
  */
 export const LATEST_ANDROID_APK_URL =
-  'https://litter.catbox.moe/m39gl1.apk';
+  'https://tmpfiles.org/dl/1785469292.0e23ff967ca034ad/whwJiihvnqJh/finanzaspersonales-2.0.0.apk';

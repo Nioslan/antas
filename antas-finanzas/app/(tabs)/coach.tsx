@@ -1,0 +1,310 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Subtitle, Title } from '../../src/components/ui';
+import { useFinance } from '../../src/context/FinanceContext';
+import { colors, radius, spacing } from '../../src/theme';
+
+const SUGGESTIONS = [
+  'Dame un diagnóstico de mi semana',
+  '¿Dónde se me va más la plata?',
+  '¿Cuánto debería apartar esta semana?',
+  'Armame un plan de 3 pasos',
+  '¿Cómo llego más rápido a mi meta?',
+  'Revisá mi bono del sábado y Ahorro',
+  '¿Cómo voy con mis fijos?',
+  '¿Qué es el libre y Ahorro?',
+];
+
+export default function CoachScreen() {
+  const insets = useSafeAreaInsets();
+  const { state, sendChat, chatting, clearChat } = useFinance();
+  const [text, setText] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates?.height ?? 0)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state.chatHistory.length === 0) return;
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+  }, [state.chatHistory.length, chatting, keyboardHeight]);
+
+  const onSend = async (message?: string) => {
+    const payload = (message ?? text).trim();
+    if (!payload) return;
+    setText('');
+    await sendChat(payload);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  return (
+    <Screen style={{ paddingTop: insets.top + 8, paddingBottom: 0 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 8 : 0}
+      >
+        <View style={styles.head}>
+          <View style={{ flex: 1 }}>
+            <Title>Asesor IA</Title>
+            <Subtitle>
+              Tu asesor financiero personal: aprende de tus movimientos y te guía día a día.
+            </Subtitle>
+          </View>
+          {state.chatHistory.length > 0 && (
+            <Pressable onPress={clearChat} style={styles.clearBtn}>
+              <Text style={styles.clearText}>Limpiar</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <FlatList
+          ref={listRef}
+          style={{ flex: 1 }}
+          data={state.chatHistory}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onContentSizeChange={() =>
+            listRef.current?.scrollToEnd({ animated: true })
+          }
+          ListHeaderComponent={
+            state.chatHistory.length === 0 ? (
+              <View style={styles.welcome}>
+                <Ionicons name="sparkles" size={28} color={colors.accent} />
+                <Text style={styles.welcomeTitle}>¿En qué te ayudo hoy?</Text>
+                <Text style={styles.welcomeBody}>
+                  Coach local entrenado para preguntas básicas: diagnóstico,
+                  gastos, cuánto apartar, metas, Ahorro, bono del sábado y
+                  fijos. No hace falta OpenAI. Si más adelante ponés una API key
+                  en Ajustes, también puede usar GPT.
+                </Text>
+                <View style={styles.suggestions}>
+                  {SUGGESTIONS.map((s) => (
+                    <Pressable
+                      key={s}
+                      style={styles.suggestion}
+                      onPress={() => onSend(s)}
+                    >
+                      <Text style={styles.suggestionText}>{s}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.bubble,
+                item.role === 'user' ? styles.userBubble : styles.aiBubble,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.bubbleText,
+                  item.role === 'user' && { color: colors.bg },
+                ]}
+              >
+                {item.content}
+              </Text>
+            </View>
+          )}
+          ListFooterComponent={
+            chatting ? (
+              <View style={styles.typing}>
+                <ActivityIndicator color={colors.accent} size="small" />
+                <Text style={styles.typingText}>Pensando…</Text>
+              </View>
+            ) : null
+          }
+        />
+
+        <View
+          style={[
+            styles.composer,
+            {
+              // Android resize + small lift; iOS handled by KeyboardAvoidingView
+              paddingBottom:
+                Platform.OS === 'android' && keyboardHeight > 0
+                  ? 12
+                  : Math.max(insets.bottom, 12),
+              marginBottom:
+                Platform.OS === 'android' && keyboardHeight > 0 ? 0 : 0,
+            },
+          ]}
+        >
+          <TextInput
+            style={styles.input}
+            placeholder="Escribí tu consulta…"
+            placeholderTextColor={colors.textDim}
+            value={text}
+            onChangeText={setText}
+            editable={!chatting}
+            multiline
+            onFocus={() =>
+              setTimeout(
+                () => listRef.current?.scrollToEnd({ animated: true }),
+                200
+              )
+            }
+          />
+          <Pressable
+            style={[
+              styles.send,
+              (!text.trim() || chatting) && { opacity: 0.4 },
+            ]}
+            onPress={() => onSend()}
+            disabled={!text.trim() || chatting}
+          >
+            <Ionicons name="send" size={18} color={colors.bg} />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  head: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: spacing.md,
+  },
+  clearBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  clearText: {
+    
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+  list: {
+    gap: 10,
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+  welcome: {
+    gap: 10,
+    paddingVertical: 12,
+  },
+  welcomeTitle: {
+    fontFamily: 'Fraunces_600SemiBold',
+    fontSize: 24,
+    color: colors.text,
+  },
+  welcomeBody: {
+    
+    color: colors.textMuted,
+    lineHeight: 22,
+  },
+  suggestions: {
+    gap: 8,
+    marginTop: 8,
+  },
+  suggestion: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  suggestionText: {
+    
+    color: colors.accent,
+    fontSize: 13,
+  },
+  bubble: {
+    maxWidth: '88%',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.accent,
+  },
+  aiBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bubbleText: {
+    
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  typing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  typingText: {
+    
+    color: colors.textMuted,
+  },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+    backgroundColor: colors.bg,
+  },
+  input: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 120,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    color: colors.text,
+    
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  send: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

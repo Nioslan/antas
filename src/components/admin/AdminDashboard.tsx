@@ -9,6 +9,8 @@ import { GalleryUpload } from "@/components/admin/GalleryUpload";
 import { VideoUpload } from "@/components/admin/VideoUpload";
 import { AdminSales } from "@/components/admin/AdminSales";
 import { AdminFinance } from "@/components/admin/AdminFinance";
+import { AdminOverview } from "@/components/admin/AdminOverview";
+import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import {
   CATEGORY_LABELS,
   COMPONENT_TYPE_LABELS,
@@ -27,7 +29,7 @@ type AdminDashboardProps = {
   initialData: InventoryData;
 };
 
-type Tab = "sales" | "finance" | "products" | "settings";
+type Tab = "overview" | "sales" | "finance" | "products" | "marketing" | "settings";
 
 const emptyProduct = (): Omit<Product, "id" | "createdAt" | "updatedAt"> => ({
   type: "pc",
@@ -46,7 +48,9 @@ const emptyProduct = (): Omit<Product, "id" | "createdAt" | "updatedAt"> => ({
 
 export function AdminDashboard({ initialData }: AdminDashboardProps) {
   const [data, setData] = useState(initialData);
-  const [tab, setTab] = useState<Tab>("sales");
+  const [tab, setTab] = useState<Tab>("overview");
+  const [productQuery, setProductQuery] = useState("");
+  const [productLineFilter, setProductLineFilter] = useState<string>("all");
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState(emptyProduct());
   const [showForm, setShowForm] = useState(false);
@@ -179,6 +183,17 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => setTab("overview")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              tab === "overview"
+                ? "bg-cyan text-black"
+                : "border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Resumen
+          </button>
+          <button
+            type="button"
             onClick={() => setTab("sales")}
             className={`rounded-full px-4 py-2 text-sm transition-colors ${
               tab === "sales"
@@ -212,6 +227,17 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
           </button>
           <button
             type="button"
+            onClick={() => setTab("marketing")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              tab === "marketing"
+                ? "bg-cyan text-black"
+                : "border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Marketing
+          </button>
+          <button
+            type="button"
             onClick={() => setTab("settings")}
             className={`rounded-full px-4 py-2 text-sm transition-colors ${
               tab === "settings"
@@ -222,6 +248,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             Logo e imágenes
           </button>
         </div>
+
+        {tab === "overview" && <AdminOverview products={data.products} />}
 
         {tab === "sales" && (
           <AdminSales
@@ -236,11 +264,60 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
 
         {tab === "products" && (
           <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-xs tracking-[0.14em] text-muted uppercase">
+                  Productos
+                </p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {data.products.length}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-xs tracking-[0.14em] text-muted uppercase">
+                  Unidades en stock
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-gold">
+                  {data.products.reduce((s, p) => s + p.stock, 0)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-xs tracking-[0.14em] text-muted uppercase">
+                  Valor del inventario
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-cyan">
+                  {formatPrice(
+                    data.products.reduce((s, p) => s + p.price * p.stock, 0),
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-muted">a precio de venta</p>
+              </div>
+            </div>
+
             {!showForm && (
-              <Button onClick={openNewForm} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Agregar producto
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button onClick={openNewForm} className="gap-2 sm:shrink-0">
+                  <Plus className="h-4 w-4" />
+                  Agregar producto
+                </Button>
+                <input
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  placeholder="Buscar por nombre o marca..."
+                  className="w-full rounded-xl border border-border bg-black px-4 py-2.5 text-sm outline-none transition-colors focus:border-cyan/50"
+                />
+                <select
+                  value={productLineFilter}
+                  onChange={(e) => setProductLineFilter(e.target.value)}
+                  className="rounded-xl border border-border bg-black px-4 py-2.5 text-sm outline-none transition-colors focus:border-cyan/50 sm:shrink-0"
+                >
+                  <option value="all">Todas las líneas</option>
+                  <option value="elite">Elite</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="renew">Renew</option>
+                  <option value="none">Sin línea</option>
+                </select>
+              </div>
             )}
 
             {showForm && (
@@ -475,7 +552,20 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                   No hay productos aún. Agrega tu primera PC, RAM o componente.
                 </p>
               )}
-              {data.products.map((product) => (
+              {data.products
+                .filter((product) => {
+                  const q = productQuery.trim().toLowerCase();
+                  const matchesQuery =
+                    !q ||
+                    product.name.toLowerCase().includes(q) ||
+                    (product.brand ?? "").toLowerCase().includes(q);
+                  const matchesLine =
+                    productLineFilter === "all" ||
+                    (productLineFilter === "none" && !product.line) ||
+                    product.line === productLineFilter;
+                  return matchesQuery && matchesLine;
+                })
+                .map((product) => (
                 <div
                   key={product.id}
                   className="flex gap-4 rounded-xl border border-border bg-surface-elevated p-4"
@@ -532,6 +622,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             </div>
           </div>
         )}
+
+        {tab === "marketing" && <AdminMarketing products={data.products} />}
 
         {tab === "settings" && (
           <div className="space-y-8 rounded-2xl border border-border bg-surface-elevated p-6">

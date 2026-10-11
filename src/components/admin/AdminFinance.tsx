@@ -35,6 +35,16 @@ export function AdminFinance() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [entryQuery, setEntryQuery] = useState("");
+
+  const filteredEntries = entries.filter((e) => {
+    const q = entryQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      e.label.toLowerCase().includes(q) ||
+      (e.note ?? "").toLowerCase().includes(q)
+    );
+  });
 
   const [type, setType] = useState<FinanceEntryType>("investment");
   const [label, setLabel] = useState("");
@@ -294,9 +304,17 @@ export function AdminFinance() {
       )}
 
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-[0.16em] text-muted uppercase">
-          Movimientos ({entries.length})
-        </h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold tracking-[0.16em] text-muted uppercase">
+            Movimientos ({filteredEntries.length})
+          </h2>
+          <input
+            value={entryQuery}
+            onChange={(e) => setEntryQuery(e.target.value)}
+            placeholder="Buscar movimientos..."
+            className="w-full rounded-xl border border-border bg-black px-4 py-2.5 text-sm outline-none transition-colors focus:border-cyan/50 sm:max-w-xs"
+          />
+        </div>
 
         {loading ? (
           <p className="text-sm text-muted">Cargando finanzas...</p>
@@ -305,9 +323,13 @@ export function AdminFinance() {
             Aún no hay inversiones ni gastos. Registra lo que te cuesta armar o
             comprar equipos para ver la ganancia real.
           </p>
+        ) : filteredEntries.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+            Sin resultados para “{entryQuery}”.
+          </p>
         ) : (
           <div className="space-y-2">
-            {entries.map((entry) => (
+            {filteredEntries.map((entry) => (
               <div
                 key={entry.id}
                 className="flex flex-col gap-3 rounded-2xl border border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between"

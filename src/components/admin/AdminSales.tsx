@@ -60,6 +60,18 @@ export function AdminSales({ products, onStockChange }: AdminSalesProps) {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [stockNotice, setStockNotice] = useState("");
+  const [orderQuery, setOrderQuery] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    const q = orderQuery.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter(
+      (o) =>
+        o.number.toLowerCase().includes(q) ||
+        o.customer.name.toLowerCase().includes(q) ||
+        o.customer.phone.toLowerCase().includes(q),
+    );
+  }, [orders, orderQuery]);
 
   const availableProducts = useMemo(
     () => products.filter((p) => p.stock > 0),
@@ -491,9 +503,17 @@ export function AdminSales({ products, onStockChange }: AdminSalesProps) {
       )}
 
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-[0.16em] text-muted uppercase">
-          Registro de ventas ({orders.length})
-        </h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold tracking-[0.16em] text-muted uppercase">
+            Registro de ventas ({filteredOrders.length})
+          </h2>
+          <input
+            value={orderQuery}
+            onChange={(e) => setOrderQuery(e.target.value)}
+            placeholder="Buscar por cliente, teléfono o factura..."
+            className="w-full rounded-xl border border-border bg-black px-4 py-2.5 text-sm outline-none transition-colors focus:border-cyan/50 sm:max-w-xs"
+          />
+        </div>
 
         {loading ? (
           <p className="text-sm text-muted">Cargando ventas...</p>
@@ -502,9 +522,13 @@ export function AdminSales({ products, onStockChange }: AdminSalesProps) {
             Aún no hay ventas registradas. Cuando cobres en efectivo (u otro
             método), regístrala aquí para generar la factura con garantía.
           </p>
+        ) : filteredOrders.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+            Sin resultados para “{orderQuery}”.
+          </p>
         ) : (
           <div className="space-y-2">
-            {orders.map((order) => {
+            {filteredOrders.map((order) => {
               const phoneUrl = getInvoiceWhatsAppUrl(order);
               return (
               <div

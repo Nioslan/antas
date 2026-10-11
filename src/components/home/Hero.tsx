@@ -11,7 +11,7 @@ type HeroProps = {
 
 export function Hero({ imageUrl = "/images/hero-banner.png" }: HeroProps) {
   return (
-    <section className="relative isolate flex min-h-[var(--phone-section)] overflow-hidden bg-background sm:min-h-[560px] lg:min-h-[640px]">
+    <section className="relative isolate flex min-h-[72svh] overflow-hidden bg-background sm:min-h-[560px] lg:min-h-[640px]">
       <div className="absolute inset-0">
         <Image
           src={imageUrl}
@@ -25,7 +25,7 @@ export function Hero({ imageUrl = "/images/hero-banner.png" }: HeroProps) {
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-end px-4 pb-8 sm:px-6 sm:pb-11 lg:px-8 lg:pb-14">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-end px-4 pb-6 sm:px-6 sm:pb-11 lg:px-8 lg:pb-14">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

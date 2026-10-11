@@ -62,11 +62,11 @@ export function LineComparison() {
           <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead>
               <tr className="bg-surface">
-                <th className="px-4 py-4 font-medium text-muted sm:px-6">
+                <th className="px-3 py-3 font-medium text-muted sm:px-6 sm:py-4">
                   <span className="sr-only">Característica</span>
                 </th>
                 {pcLines.map((line) => (
-                  <th key={line.id} className="px-4 py-4 sm:px-6">
+                  <th key={line.id} className="px-3 py-3 sm:px-6 sm:py-4">
                     <p className="font-semibold text-foreground">{line.name}</p>
                     <p className="mt-1 text-xs font-normal text-muted">
                       Desde {formatPrice(line.priceFrom)}
@@ -83,12 +83,12 @@ export function LineComparison() {
                 >
                   <th
                     scope="row"
-                    className="px-4 py-3.5 font-medium text-muted sm:px-6"
+                    className="px-3 py-3 font-medium text-muted sm:px-6 sm:py-3.5"
                   >
                     {row.label}
                   </th>
                   {row.values.map((value, j) => (
-                    <td key={j} className="px-4 py-3.5 text-foreground sm:px-6">
+                    <td key={j} className="px-3 py-3 text-foreground sm:px-6 sm:py-3.5">
                       <span className="inline-flex items-start gap-2">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan" />
                         {value}
@@ -98,11 +98,11 @@ export function LineComparison() {
                 </tr>
               ))}
               <tr className="bg-surface/50">
-                <th scope="row" className="px-4 py-4 sm:px-6">
+                <th scope="row" className="px-3 py-3 sm:px-6 sm:py-4">
                   <span className="sr-only">Acción</span>
                 </th>
                 {pcLines.map((line) => (
-                  <td key={line.id} className="px-4 py-4 sm:px-6">
+                  <td key={line.id} className="px-3 py-3 sm:px-6 sm:py-4">
                     <Link
                       href={line.href}
                       className="inline-block rounded-xl border border-border px-4 py-2 text-xs font-semibold transition hover:border-gold/40 hover:text-gold"

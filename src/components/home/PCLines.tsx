@@ -52,7 +52,7 @@ export function PCLines({
                   )}
                 />
 
-                <div className="relative aspect-[16/11] overflow-hidden bg-background sm:aspect-[4/3]">
+                <div className="relative aspect-[16/9] overflow-hidden bg-background sm:aspect-[4/3]">
                   {image ? (
                     <Image
                       src={image}

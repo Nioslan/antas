@@ -16,8 +16,8 @@ type FooterProps = {
 export function Footer({ logoUrl }: FooterProps) {
   return (
     <footer className="border-t border-border bg-surface">
-      <Container className="py-10 sm:py-14">
-        <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:grid-cols-4">
+      <Container className="py-8 sm:py-14">
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-10 lg:grid-cols-4">
           <div>
             {logoUrl ? (
               <Image

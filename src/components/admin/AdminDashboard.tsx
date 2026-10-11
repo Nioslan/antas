@@ -40,6 +40,7 @@ const emptyProduct = (): Omit<Product, "id" | "createdAt" | "updatedAt"> => ({
   image: "",
   images: [],
   video: "",
+  videos: [],
   line: "elite",
   category: "gaming",
   brand: "",
@@ -74,6 +75,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       image: product.image,
       images: product.images ?? [],
       video: product.video ?? "",
+      videos: product.videos ?? (product.video ? [product.video] : []),
       line: product.line,
       category: product.category,
       brand: product.brand ?? "",
@@ -90,8 +92,9 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
       ...form,
       stock: Number(form.stock),
       price: Number(form.price),
-      images: (form.images ?? []).filter(Boolean).slice(0, 5),
-      video: form.type === "pc" && form.video ? form.video : undefined,
+      images: (form.images ?? []).filter(Boolean).slice(0, 12),
+      video: form.type === "pc" && form.videos?.[0] ? form.videos[0] : undefined,
+      videos: (form.videos ?? []).filter(Boolean).slice(0, 3),
     };
 
     const url = editing ? `/api/products/${editing}` : "/api/products";
@@ -517,14 +520,14 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                 <GalleryUpload
                   value={form.images ?? []}
                   onChange={(urls) => setForm({ ...form, images: urls })}
-                  label="Galería (hasta 5 fotos más)"
+                  label="Galería de fotos (hasta 12)"
                 />
 
                 {form.type === "pc" ? (
                   <VideoUpload
-                    value={form.video ?? ""}
-                    onChange={(url) => setForm({ ...form, video: url })}
-                    label="Video del build (Renew / Hybrid / Elite)"
+                    value={form.videos ?? []}
+                    onChange={(urls) => setForm({ ...form, videos: urls })}
+                    label="Videos de la PC (hasta 3)"
                   />
                 ) : null}
 
@@ -591,7 +594,9 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
                       {product.line && ` · ${LINE_LABELS[product.line]}`}
                       {product.componentType &&
                         ` · ${COMPONENT_TYPE_LABELS[product.componentType]}`}
-                      {product.video ? " · Con video" : ""}
+                      {(product.videos?.length ?? 0) > 0 || product.video
+                        ? ` · ${(product.videos?.length ?? 0) || 1} video${((product.videos?.length ?? 0) || 1) === 1 ? "" : "s"}`
+                        : ""}
                       {(product.images?.length ?? 0) > 0
                         ? ` · ${1 + (product.images?.length ?? 0)} fotos`
                         : ""}

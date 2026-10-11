@@ -35,6 +35,8 @@ export type Product = {
   images?: string[];
   /** Optional product video (PC builds: Renew / Hybrid / Elite). */
   video?: string;
+  /** Extra videos showing performance and style (max 3). */
+  videos?: string[];
   line?: ProductLine;
   category?: ProductCategory;
   brand?: string;

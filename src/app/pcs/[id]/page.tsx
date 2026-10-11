@@ -65,6 +65,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             cover={product.image}
             images={product.images}
             video={product.video}
+            videos={product.videos}
           />
 
           <div className="space-y-6">

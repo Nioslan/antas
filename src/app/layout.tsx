@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { Analytics } from "@/components/Analytics";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -52,6 +53,7 @@ export default function RootLayout({
       className={`${manrope.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+        <Analytics />
         <Providers>{children}</Providers>
       </body>
     </html>

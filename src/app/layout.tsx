@@ -15,6 +15,21 @@ export const metadata: Metadata = {
   },
   description:
     "PCs premium para Gaming, Streaming y Trabajo. Renew, Hybrid y Elite. Usa tu PC actual como parte de pago.",
+  metadataBase: new URL("https://www.antaspc.com"),
+  openGraph: {
+    type: "website",
+    locale: "es_US",
+    siteName: "ANTASPC",
+    title: "ANTASPC — La PC que imaginas",
+    description:
+      "PCs premium para Gaming, Streaming y Trabajo. Renew, Hybrid y Elite. Usa tu PC actual como parte de pago.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ANTASPC — La PC que imaginas",
+    description:
+      "PCs premium para Gaming, Streaming y Trabajo. Renew, Hybrid y Elite.",
+  },
 };
 
 export const viewport: Viewport = {

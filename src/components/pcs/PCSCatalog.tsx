@@ -222,7 +222,6 @@ export function PCSCatalog({
                       alt={product.name}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      unoptimized
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-muted">

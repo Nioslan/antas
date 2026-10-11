@@ -5,6 +5,8 @@ import { getProducts } from "@/lib/inventory";
 
 export const metadata: Metadata = {
   title: "PCs",
+  description:
+    "Catálogo de PCs ANTASPC en Miami: líneas Renew, Hybrid y Elite para gaming, streaming y trabajo. Equipos certificados con garantía incluida.",
 };
 
 type PCsPageProps = {

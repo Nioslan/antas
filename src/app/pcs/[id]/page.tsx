@@ -146,7 +146,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
                         alt={p.name}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                     )}
                   </div>

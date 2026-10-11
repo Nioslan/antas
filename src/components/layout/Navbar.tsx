@@ -54,7 +54,6 @@ function NavbarInner({ logoUrl }: NavbarProps) {
               width={36}
               height={36}
               className="h-7 w-auto object-contain sm:h-8"
-              unoptimized
             />
           ) : null}
           <span className="text-sm font-semibold tracking-[0.22em] text-foreground">
@@ -202,7 +201,6 @@ function NavbarShell({ logoUrl }: NavbarProps) {
               width={36}
               height={36}
               className="h-7 w-auto object-contain sm:h-8"
-              unoptimized
             />
           ) : null}
           <span className="text-sm font-semibold tracking-[0.22em] text-foreground">

@@ -70,7 +70,6 @@ export function InvoiceDocument({ order, logoUrl }: InvoiceDocumentProps) {
                   width={48}
                   height={48}
                   className="h-12 w-auto object-contain"
-                  unoptimized
                 />
               ) : null}
               <div>

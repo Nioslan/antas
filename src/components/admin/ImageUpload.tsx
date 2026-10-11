@@ -60,7 +60,7 @@ export function ImageUpload({
       >
         {value ? (
           <>
-            <Image src={value} alt={label} fill className="object-cover" unoptimized />
+            <Image src={value} alt={label} fill className="object-cover" />
             <button
               type="button"
               onClick={() => onChange("")}

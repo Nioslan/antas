@@ -4,10 +4,12 @@ import { SiteLayout } from "@/components/layout/SiteLayout";
 import { Hero } from "@/components/home/Hero";
 import { UpgradeSection } from "@/components/home/UpgradeSection";
 import { PCLines } from "@/components/home/PCLines";
+import { LineComparison } from "@/components/home/LineComparison";
 import { WhyAntas } from "@/components/home/WhyAntas";
 import { HomeServices } from "@/components/home/HomeServices";
 import { HomeWarranty } from "@/components/home/HomeWarranty";
-import { HomeReviews } from "@/components/home/HomeReviews";
+// HomeReviews oculto hasta tener reseñas reales de clientes
+// import { HomeReviews } from "@/components/home/HomeReviews";
 import { getLineStartingPrice, readInventory } from "@/lib/inventory";
 import type { ProductLine } from "@/types/inventory";
 
@@ -58,11 +60,12 @@ export default async function Home() {
     <SiteLayout>
       <Hero imageUrl={heroImage} />
       <PCLines startingPrices={startingPrices} lineImages={lineImages} />
+      <LineComparison />
       <UpgradeSection />
       <HomeServices />
       <WhyAntas />
       <HomeWarranty />
-      <HomeReviews />
+      {/* <HomeReviews /> oculto hasta tener reseñas reales */}
     </SiteLayout>
   );
 }

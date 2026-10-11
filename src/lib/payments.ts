@@ -23,7 +23,7 @@ export const paymentMethods = [
   {
     id: "affirm",
     name: "Affirm",
-    description: "Financiamiento mensual transparente. Sin tarjetas ocultas.",
+    description: "Financiamiento mensual transparente. Sin cargos ocultos.",
     status: "coming_soon" as const,
     brands: ["Affirm"],
   },

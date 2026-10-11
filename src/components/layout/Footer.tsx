@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/Container";
 
 const infoLinks = [
   { href: "/garantia", label: "Garantía" },
-  { href: "/financiamiento", label: "Políticas" },
+  { href: "/financiamiento", label: "Financiamiento" },
   { href: "/contacto", label: "Contacto" },
 ] as const;
 
@@ -26,7 +26,6 @@ export function Footer({ logoUrl }: FooterProps) {
                 width={120}
                 height={40}
                 className="h-8 w-auto object-contain"
-                unoptimized
               />
             ) : (
               <p className="text-sm font-semibold tracking-[0.22em]">

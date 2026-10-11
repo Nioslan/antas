@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
 import { getSettings } from "@/lib/inventory";
 
 type SiteLayoutProps = {
@@ -27,6 +28,7 @@ export async function SiteLayout({ children }: SiteLayoutProps) {
       <Navbar logoUrl={logoUrl} />
       <main className="flex-1 pt-[var(--nav-h)]">{children}</main>
       <Footer logoUrl={logoUrl} />
+      <WhatsAppFloat />
     </>
   );
 }

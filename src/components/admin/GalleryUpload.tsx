@@ -76,7 +76,6 @@ export function GalleryUpload({
               alt={`Foto ${index + 1}`}
               fill
               className="object-cover"
-              unoptimized
             />
             <button
               type="button"

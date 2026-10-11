@@ -33,7 +33,6 @@ export function ProductGallery({
             fill
             className="object-cover"
             priority
-            unoptimized
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted">
@@ -61,7 +60,6 @@ export function ProductGallery({
                 alt={`${name} ${index + 1}`}
                 fill
                 className="object-cover"
-                unoptimized
               />
               {index === 0 ? (
                 <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-cyan uppercase">

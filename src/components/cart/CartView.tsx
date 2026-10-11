@@ -86,7 +86,6 @@ export function CartView() {
                     alt={item.name}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-muted">

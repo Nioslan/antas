@@ -18,7 +18,6 @@ export function Hero({ imageUrl = "/images/hero-banner.png" }: HeroProps) {
           alt="ANTAS — La PC que imaginas"
           fill
           priority
-          unoptimized
           className="object-contain object-center"
           sizes="100vw"
         />

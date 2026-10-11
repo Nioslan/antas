@@ -58,7 +58,6 @@ export function PCLines({
                       src={image}
                       alt={line.name}
                       fill
-                      unoptimized
                       className="object-contain p-5 transition duration-500 group-hover:scale-[1.03] sm:p-6"
                       sizes="(max-width: 768px) 100vw, 33vw"
                     />

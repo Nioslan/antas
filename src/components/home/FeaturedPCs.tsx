@@ -61,7 +61,6 @@ export function FeaturedPCs({ products }: FeaturedPCsProps) {
                     src={pc.image}
                     alt={pc.title}
                     fill
-                    unoptimized
                     className="object-contain p-4 transition duration-500 group-hover:scale-[1.03]"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { isAdminAuthenticated } from "@/lib/auth";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+import { saveFile } from "@/lib/storage";
 
 const IMAGE_TYPES = [
   "image/jpeg",
@@ -59,15 +56,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-
     const ext = file.name.split(".").pop()?.toLowerCase() ?? (isVideo ? "mp4" : "jpg");
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(path.join(UPLOAD_DIR, filename), buffer);
+    const stored = await saveFile(buffer, filename, file.type);
 
     return NextResponse.json({
-      url: `/uploads/${filename}`,
+      url: stored.url,
       kind: isVideo ? "video" : "image",
     });
   } catch {

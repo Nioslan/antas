@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { saveFile } from "@/lib/storage";
 
 export const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -21,19 +20,9 @@ export async function saveUploadedImage(
     throw new Error("La imagen no puede pesar más de 5 MB.");
   }
 
-  const uploadDir = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    subfolder,
-  );
-  await fs.mkdir(uploadDir, { recursive: true });
-
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, filename), buffer);
-
-  const basePath = subfolder ? `/uploads/${subfolder}` : "/uploads";
-  return `${basePath}/${filename}`;
+  const stored = await saveFile(buffer, filename, file.type, subfolder);
+  return stored.url;
 }

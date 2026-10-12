@@ -25,7 +25,7 @@ export default function CheckoutPage() {
 
   return (
     <SiteLayout>
-      <section className="relative bg-background py-16 sm:py-24">
+      <section className="relative bg-background py-10 sm:py-24">
         <Container className="relative mx-auto max-w-lg text-center">
           <div className="mx-auto mb-6 inline-flex rounded-full border border-cyan/25 bg-cyan/5 p-4">
             <Lock className="h-8 w-8 text-cyan" />

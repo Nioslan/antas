@@ -2,12 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Cpu, ShieldCheck } from "lucide-react";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { Section, SectionHeader } from "@/components/ui/Section";
-import { pcLines } from "@/lib/site";
+import { homeWarranty, pcLines } from "@/lib/site";
 import { cn, formatPrice } from "@/lib/utils";
 import type { ProductLine } from "@/types/inventory";
+
+const lineComponents: Record<ProductLine, string> = {
+  renew: "Usados certificados",
+  hybrid: "Usados certificados + partes nuevas",
+  elite: "Totalmente nuevos",
+};
+
+function lineWarranty(id: ProductLine): string {
+  return homeWarranty.find((w) => w.id === id)?.detail ?? "";
+}
 
 type PCLinesProps = {
   startingPrices?: Partial<Record<ProductLine, number>>;
@@ -64,6 +74,9 @@ export function PCLines({
                 <h3 className="truncate text-[15px] font-semibold text-foreground">
                   {line.name}
                 </h3>
+                <p className="truncate text-[11px] text-muted">
+                  {lineComponents[line.id]} · {lineWarranty(line.id)} garantía
+                </p>
                 <p className="mt-0.5 text-xs text-muted">
                   Desde{" "}
                   <span
@@ -161,6 +174,17 @@ export function PCLines({
                   <p className="mt-2 text-sm leading-relaxed text-muted">
                     {line.description}
                   </p>
+
+                  <div className="mb-4 mt-3 space-y-1.5 border-t border-border/60 pt-3 text-xs">
+                    <p className="flex items-center gap-1.5 text-muted">
+                      <Cpu className="h-3.5 w-3.5 shrink-0 text-cyan" />
+                      {lineComponents[line.id]}
+                    </p>
+                    <p className="flex items-center gap-1.5 text-muted">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-cyan" />
+                      Garantía de {lineWarranty(line.id)}
+                    </p>
+                  </div>
 
                   <div className="mt-auto flex items-end justify-between border-t border-border/80 pt-4">
                     <div>

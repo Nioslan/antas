@@ -29,7 +29,7 @@ export function CartView() {
 
   if (items.length === 0) {
     return (
-      <Container className="py-20 sm:py-28">
+      <Container className="py-10 sm:py-28">
         <div className="mx-auto max-w-md text-center">
           <div className="mx-auto mb-6 inline-flex rounded-full border border-border bg-surface-elevated p-4">
             <ShoppingBag className="h-8 w-8 text-muted" />
@@ -61,14 +61,14 @@ export function CartView() {
   );
 
   return (
-    <section className="relative bg-black py-10 sm:py-16">
+    <section className="relative bg-black py-8 sm:py-16">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--color-cyan-glow),_transparent_55%)]" />
       <Container className="relative">
         <div className="mb-8">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-cyan">
             Tu pedido
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Carrito</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">Carrito</h1>
           <p className="mt-1 text-sm text-muted">Revisa tu pedido antes de comprar.</p>
         </div>
 

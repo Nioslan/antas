@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/Container";
 const infoLinks = [
   { href: "/garantia", label: "Garantía" },
   { href: "/financiamiento", label: "Financiamiento" },
+  { href: "/amazonlink", label: "Amazonlink" },
   { href: "/politicas", label: "Políticas" },
   { href: "/contacto", label: "Contacto" },
 ] as const;

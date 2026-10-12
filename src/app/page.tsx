@@ -4,7 +4,6 @@ import { SiteLayout } from "@/components/layout/SiteLayout";
 import { Hero } from "@/components/home/Hero";
 import { UpgradeSection } from "@/components/home/UpgradeSection";
 import { PCLines } from "@/components/home/PCLines";
-import { LineComparison } from "@/components/home/LineComparison";
 import { WhyAntas } from "@/components/home/WhyAntas";
 import { HomeServices } from "@/components/home/HomeServices";
 import { HomeWarranty } from "@/components/home/HomeWarranty";
@@ -60,7 +59,6 @@ export default async function Home() {
     <SiteLayout>
       <Hero imageUrl={heroImage} />
       <PCLines startingPrices={startingPrices} lineImages={lineImages} />
-      <LineComparison />
       <UpgradeSection />
       <HomeServices />
       <WhyAntas />

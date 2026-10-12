@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function GarantiaPage() {
   return (
     <SiteLayout>
-      <div className="relative border-b border-border bg-background py-12 sm:py-16">
+      <div className="relative border-b border-border bg-background py-8 sm:py-16">
         <Container className="relative max-w-3xl">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl border border-cyan/25 bg-cyan/5 p-3">
@@ -26,7 +26,7 @@ export default function GarantiaPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan">
                 ANTASPC
               </p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">
                 {WARRANTY_POLICY.title}
               </h1>
               <p className="mt-3 text-muted">{WARRANTY_POLICY.intro}</p>
@@ -35,7 +35,7 @@ export default function GarantiaPage() {
         </Container>
       </div>
 
-      <Container className="max-w-3xl py-12 sm:py-16">
+      <Container className="max-w-3xl py-8 sm:py-16">
         <div className="space-y-6">
           {WARRANTY_POLICY.sections.map((section, index) => {
             const isHighlight = "highlight" in section && section.highlight;

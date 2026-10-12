@@ -11,6 +11,7 @@ import { AdminSales } from "@/components/admin/AdminSales";
 import { AdminFinance } from "@/components/admin/AdminFinance";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AdminMarketing } from "@/components/admin/AdminMarketing";
+import { AdminAmazon } from "@/components/admin/AdminAmazon";
 import {
   CATEGORY_LABELS,
   COMPONENT_TYPE_LABELS,
@@ -29,7 +30,7 @@ type AdminDashboardProps = {
   initialData: InventoryData;
 };
 
-type Tab = "overview" | "sales" | "finance" | "products" | "marketing" | "settings";
+type Tab = "overview" | "sales" | "finance" | "products" | "amazon" | "marketing" | "settings";
 
 const emptyProduct = (): Omit<Product, "id" | "createdAt" | "updatedAt"> => ({
   type: "pc",
@@ -227,6 +228,17 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             }`}
           >
             Inventario ({data.products.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("amazon")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              tab === "amazon"
+                ? "bg-cyan text-black"
+                : "border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            Amazonlink
           </button>
           <button
             type="button"
@@ -627,6 +639,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps) {
             </div>
           </div>
         )}
+
+        {tab === "amazon" && <AdminAmazon />}
 
         {tab === "marketing" && <AdminMarketing products={data.products} />}
 

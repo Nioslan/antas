@@ -222,7 +222,7 @@ export function UpgradeForm() {
     );
 
     return (
-      <Container className="py-16 sm:py-24">
+      <Container className="py-8 sm:py-24">
         <div className="mx-auto max-w-lg text-center">
           <div className="mx-auto mb-6 inline-flex rounded-full border border-cyan/20 bg-cyan/5 p-4">
             <CheckCircle2 className="h-10 w-10 text-cyan" />
@@ -264,13 +264,13 @@ export function UpgradeForm() {
 
   return (
     <div className="relative overflow-hidden bg-background">
-      <section className="border-b border-border py-12 sm:py-16">
+      <section className="border-b border-border py-8 sm:py-16">
         <Container className="relative">
           <div className="mx-auto max-w-2xl text-center">
             <p className="mb-3 inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-xs font-semibold tracking-[0.2em] text-gold uppercase">
               ANTAS Trade-in
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
               Usa tu PC como{" "}
               <span className="text-gold">parte de pago</span>
             </h1>
@@ -296,7 +296,7 @@ export function UpgradeForm() {
       </section>
 
       {/* Form */}
-      <section className="py-12 sm:py-16">
+      <section className="py-8 sm:py-16">
         <Container className="relative">
           <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-8">
             {/* Photo */}

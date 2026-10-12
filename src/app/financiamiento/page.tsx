@@ -39,7 +39,7 @@ const icons = {
 export default function FinanciamientoPage() {
   return (
     <SiteLayout>
-      <section className="relative border-b border-border bg-background py-14 sm:py-20">
+      <section className="relative border-b border-border bg-background py-8 sm:py-20">
         <Container className="relative">
           <SectionHeader
             badge="Pagos ANTASPC"
@@ -65,7 +65,7 @@ export default function FinanciamientoPage() {
         </Container>
       </section>
 
-      <Container className="py-14 sm:py-20">
+      <Container className="py-8 sm:py-20">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {paymentMethods.map((method) => {
             const Icon = icons[method.id as keyof typeof icons] ?? CreditCard;

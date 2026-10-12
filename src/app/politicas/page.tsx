@@ -40,7 +40,7 @@ function PolicySection({
 export default function PoliciesPage() {
   return (
     <SiteLayout>
-      <Container className="py-12 sm:py-16">
+      <Container className="py-8 sm:py-16">
         <FadeIn>
           <SectionHeader
             eyebrow="Transparencia"

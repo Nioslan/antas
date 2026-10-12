@@ -19,7 +19,7 @@ const whatsappHref = `https://wa.me/${siteConfig.whatsapp}?text=${encodeURICompo
 export default function ContactPage() {
   return (
     <SiteLayout>
-      <Container className="py-12 sm:py-16">
+      <Container className="py-8 sm:py-16">
         <FadeIn>
           <SectionHeader
             eyebrow="Contacto"

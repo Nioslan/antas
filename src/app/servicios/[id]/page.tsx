@@ -68,7 +68,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
 
   return (
     <SiteLayout>
-      <section className="border-b border-border bg-background py-10 sm:py-14">
+      <section className="border-b border-border bg-background py-8 sm:py-14">
         <Container className="max-w-3xl">
           <Link
             href="/servicios"
@@ -86,7 +86,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
               <p className="text-[11px] font-semibold tracking-[0.28em] text-cyan uppercase">
                 Servicio ANTAS
               </p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">
                 {service.name}
               </h1>
               <p className="mt-3 text-base leading-relaxed text-muted">
@@ -118,7 +118,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
         </Container>
       </section>
 
-      <Container className="max-w-3xl py-10 sm:py-14">
+      <Container className="max-w-3xl py-8 sm:py-14">
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
             <h2 className="text-sm font-semibold tracking-[0.18em] text-cyan uppercase">

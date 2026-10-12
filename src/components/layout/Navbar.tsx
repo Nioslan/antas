@@ -24,6 +24,7 @@ const primaryLinks = [
 ] as const;
 
 const secondaryLinks = [
+  { href: "/amazonlink", label: "Amazonlink" },
   { href: "/upgrade", label: "Trade-In" },
   { href: "/contacto", label: "Contacto" },
 ] as const;

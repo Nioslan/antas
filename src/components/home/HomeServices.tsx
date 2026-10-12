@@ -47,7 +47,7 @@ export function HomeServices() {
         </div>
       </FadeIn>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
         {services.map((service, index) => {
           const Icon = icons[service.icon];
           const gold = index % 2 === 1;
@@ -57,7 +57,7 @@ export function HomeServices() {
               <Link
                 href={`/servicios/${service.id}`}
                 className={cn(
-                  "group flex h-full flex-col rounded-2xl border bg-background p-4 transition duration-300 hover:-translate-y-0.5 sm:p-5",
+                  "group flex h-full flex-col rounded-2xl border bg-background p-3 transition duration-300 hover:-translate-y-0.5 sm:p-5",
                   gold
                     ? "border-border hover:border-gold/40"
                     : "border-border hover:border-cyan/35",
@@ -65,7 +65,7 @@ export function HomeServices() {
               >
                 <div
                   className={cn(
-                    "mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border",
+                    "mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl border sm:mb-4 sm:h-10 sm:w-10",
                     gold
                       ? "border-gold/25 bg-gold/10 text-gold"
                       : "border-cyan/25 bg-cyan/10 text-cyan",

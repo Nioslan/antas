@@ -97,14 +97,14 @@ function NavbarInner({ logoUrl }: NavbarProps) {
             </span>
           </a>
 
-          <CartLink className="rounded-lg p-2 text-muted transition hover:bg-white/[0.04] hover:text-foreground">
+          <CartLink className="rounded-lg p-2.5 text-muted transition hover:bg-white/[0.04] hover:text-foreground">
             <ShoppingCart className="h-5 w-5" />
           </CartLink>
 
           <button
             type="button"
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
-            className="rounded-lg p-2 text-foreground transition hover:bg-white/[0.04]"
+            className="rounded-lg p-2.5 text-foreground transition hover:bg-white/[0.04]"
             onClick={() => setOpen((v) => !v)}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

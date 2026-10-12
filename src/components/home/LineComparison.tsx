@@ -58,7 +58,51 @@ export function LineComparison() {
       </FadeIn>
 
       <FadeIn delay={0.1}>
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        {/* En móvil: tarjetas apiladas, sin scroll lateral */}
+        <div className="grid gap-3 md:hidden">
+          {pcLines.map((line, li) => (
+            <div
+              key={line.id}
+              className="overflow-hidden rounded-2xl border border-border bg-surface-elevated"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+                <div>
+                  <p className="font-semibold text-foreground">{line.name}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Desde {formatPrice(line.priceFrom)}
+                  </p>
+                </div>
+                <Link
+                  href={line.href}
+                  className="shrink-0 rounded-xl border border-border px-3.5 py-2 text-xs font-semibold transition hover:border-gold/40 hover:text-gold"
+                >
+                  Ver {line.name}
+                </Link>
+              </div>
+              <dl>
+                {rows.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={cn(
+                      "flex items-start justify-between gap-3 px-4 py-2.5",
+                      i % 2 === 1 && "bg-surface/50",
+                    )}
+                  >
+                    <dt className="shrink-0 text-xs font-medium text-muted">
+                      {row.label}
+                    </dt>
+                    <dd className="text-right text-xs text-foreground">
+                      {row.values[li]}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </div>
+
+        {/* En escritorio: tabla comparativa */}
+        <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
           <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead>
               <tr className="bg-surface">

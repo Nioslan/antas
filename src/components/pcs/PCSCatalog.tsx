@@ -205,7 +205,7 @@ export function PCSCatalog({
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {filtered.map((product) => (
               <Link
                 key={product.id}
@@ -234,15 +234,15 @@ export function PCSCatalog({
                     </span>
                   )}
                 </div>
-                <div className="p-4">
-                  <p className="text-xs text-muted">
+                <div className="p-3 sm:p-4">
+                  <p className="text-[11px] text-muted sm:text-xs">
                     {PRODUCT_TYPE_LABELS[product.type]}
                     {product.line && ` · ${LINE_LABELS[product.line]}`}
                     {product.componentType &&
                       ` · ${COMPONENT_TYPE_LABELS[product.componentType]}`}
                   </p>
-                  <h3 className="mt-1 font-medium leading-snug">{product.name}</h3>
-                  <p className="mt-2 text-lg text-cyan">{formatPrice(product.price)}</p>
+                  <h3 className="mt-1 text-sm leading-snug font-medium sm:text-base">{product.name}</h3>
+                  <p className="mt-2 text-base text-cyan sm:text-lg">{formatPrice(product.price)}</p>
                 </div>
               </Link>
             ))}

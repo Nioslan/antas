@@ -77,7 +77,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {product.componentType &&
                   ` · ${COMPONENT_TYPE_LABELS[product.componentType]}`}
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                 {product.name}
               </h1>
               {product.description && (
@@ -85,7 +85,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               )}
             </div>
 
-            <p className="text-3xl font-medium text-cyan">{formatPrice(product.price)}</p>
+            <p className="text-2xl font-medium text-cyan sm:text-3xl">{formatPrice(product.price)}</p>
 
             <p className="text-sm text-muted">
               {product.stock > 0
@@ -133,7 +133,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {related.length > 0 && (
           <div className="mt-16">
             <h2 className="mb-6 text-xl font-semibold">Productos relacionados</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
               {related.map((p) => (
                 <Link
                   key={p.id}

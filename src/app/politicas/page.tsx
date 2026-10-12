@@ -54,7 +54,7 @@ export default function PoliciesPage() {
             <PolicySection id="garantia" title="Garantía">
               <p>
                 Todos nuestros equipos incluyen garantía escrita: 2 meses en
-                líneas Renew y Hybrid, 3 meses en línea Elite. Si un componente
+                línea Renew, 3 meses en líneas Hybrid y Elite. Si un componente
                 falla dentro del período de cobertura por defecto de
                 fabricación o ensamblado, lo reparamos o reemplazamos sin costo.
               </p>

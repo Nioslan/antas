@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { Section, SectionHeader } from "@/components/ui/Section";
-import { pcLines, homeWarranty } from "@/lib/site";
+import { pcLines } from "@/lib/site";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -11,37 +11,13 @@ const rows: { label: string; values: [string, string, string] }[] = [
     label: "Componentes",
     values: [
       "Usados certificados",
-      "Nuevos + usados certificados",
-      "Completamente nuevos",
+      "Usados certificados + partes nuevas",
+      "Totalmente nuevos",
     ],
-  },
-  {
-    label: "CPU típico",
-    values: ["Ryzen 5 5600", "Ryzen 7 7700X", "Ryzen 9 9950X"],
-  },
-  {
-    label: "GPU típica",
-    values: ["RTX 3060 12GB", "RTX 5070", "RTX 5090"],
-  },
-  {
-    label: "Memoria típica",
-    values: ["32GB DDR4", "32GB DDR5", "64GB DDR5"],
   },
   {
     label: "Garantía incluida",
-    values: [
-      homeWarranty[0].detail,
-      homeWarranty[1].detail,
-      homeWarranty[2].detail,
-    ],
-  },
-  {
-    label: "Ideal para",
-    values: [
-      "Jugar y trabajar con gran valor",
-      "El mejor balance precio-rendimiento",
-      "Máximo rendimiento sin límites",
-    ],
+    values: ["2 meses", "3 meses", "3 meses"],
   },
 ];
 

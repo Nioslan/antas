@@ -125,8 +125,8 @@ export const homeWarranty = [
   {
     id: "hybrid",
     title: "PC Hybrid",
-    detail: "2 meses",
-    note: "Garantía incluida en equipos híbridos certificados.",
+    detail: "3 meses",
+    note: "Usados certificados con partes nuevas.",
     accent: "gold" as const,
   },
   {

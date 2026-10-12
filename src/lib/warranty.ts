@@ -22,8 +22,8 @@ export const WARRANTY_POLICY = {
     {
       title: "Garantía para equipos PC Hybrid",
       items: [
-        "Todos los equipos PC Hybrid incluyen 2 meses de garantía.",
-        "Combinan componentes nuevos y usados certificados, con la misma revisión técnica ANTASPC.",
+        "Todos los equipos PC Hybrid incluyen 3 meses de garantía.",
+        "Combinan componentes usados certificados con partes nuevas, con la misma revisión técnica ANTASPC.",
       ],
     },
     {
@@ -107,7 +107,7 @@ export const EXTENDED_WARRANTY_MONTHS = 6;
 
 export const INCLUDED_WARRANTY_MONTHS: Record<ProductLine, number> = {
   renew: 2,
-  hybrid: 2,
+  hybrid: 3,
   elite: 3,
 };
 

@@ -28,7 +28,69 @@ export function PCLines({
         />
       </FadeIn>
 
-      <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
+      {/* En móvil: lista vertical compacta, las 3 líneas a la vista */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {pcLines.map((line) => {
+          const image = lineImages[line.id];
+          const price = startingPrices[line.id] ?? line.priceFrom;
+          const gold = line.accent === "gold";
+
+          return (
+            <Link
+              key={line.id}
+              href={line.href}
+              className="group flex items-center gap-3 rounded-2xl border border-border bg-background p-2.5 transition active:scale-[0.99]"
+            >
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black">
+                {image ? (
+                  <Image
+                    src={image}
+                    alt={line.name}
+                    fill
+                    className="object-contain p-1.5"
+                    sizes="64px"
+                  />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "text-[10px] font-semibold tracking-[0.18em] uppercase",
+                    gold ? "text-gold" : "text-cyan",
+                  )}
+                >
+                  {line.tag}
+                </p>
+                <h3 className="truncate text-[15px] font-semibold text-foreground">
+                  {line.name}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted">
+                  Desde{" "}
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      gold ? "text-gold" : "text-cyan",
+                    )}
+                  >
+                    {formatPrice(price)}
+                  </span>
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
+                  gold ? "border-gold/25 text-gold" : "border-cyan/25 text-cyan",
+                )}
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* En escritorio: tarjetas grandes */}
+      <div className="hidden gap-4 md:grid md:grid-cols-3">
         {pcLines.map((line, index) => {
           const image = lineImages[line.id];
           const price = startingPrices[line.id] ?? line.priceFrom;

@@ -23,8 +23,8 @@ export function Section({
         // En móvil las secciones se ajustan al contenido (sin altura forzada)
         // para no obligar a hacer scroll de más.
         phoneScreen
-          ? "py-8 sm:min-h-[560px] sm:py-14 lg:min-h-[620px] lg:py-16"
-          : "py-8 sm:py-14 lg:py-16",
+          ? "py-6 sm:min-h-[560px] sm:py-14 lg:min-h-[620px] lg:py-16"
+          : "py-6 sm:py-14 lg:py-16",
         surface ? "bg-surface" : "bg-background",
         className,
       )}
@@ -52,7 +52,7 @@ export function SectionHeader({
   accent = "cyan",
 }: SectionHeaderProps) {
   return (
-    <div className={cn("mb-5 max-w-2xl sm:mb-8 lg:mb-10", className)}>
+    <div className={cn("mb-4 max-w-2xl sm:mb-8 lg:mb-10", className)}>
       {eyebrow ? (
         <p
           className={cn(
@@ -63,7 +63,7 @@ export function SectionHeader({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+      <h2 className="text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl lg:text-4xl">
         {title}
       </h2>
       <div
@@ -73,7 +73,7 @@ export function SectionHeader({
         )}
       />
       {description ? (
-        <p className="mt-2.5 text-sm leading-relaxed text-muted sm:mt-3 sm:text-base">
+        <p className="mt-2 text-[13px] leading-relaxed text-muted sm:mt-3 sm:text-base">
           {description}
         </p>
       ) : null}

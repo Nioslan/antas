@@ -7,6 +7,7 @@ import { PCLines } from "@/components/home/PCLines";
 import { WhyAntas } from "@/components/home/WhyAntas";
 import { HomeServices } from "@/components/home/HomeServices";
 import { HomeWarranty } from "@/components/home/HomeWarranty";
+import { AmazonBuilds } from "@/components/home/AmazonBuilds";
 // HomeReviews oculto hasta tener reseñas reales de clientes
 // import { HomeReviews } from "@/components/home/HomeReviews";
 import { getLineStartingPrice, readInventory } from "@/lib/inventory";
@@ -59,6 +60,7 @@ export default async function Home() {
     <SiteLayout>
       <Hero imageUrl={heroImage} />
       <PCLines startingPrices={startingPrices} lineImages={lineImages} />
+      <AmazonBuilds />
       <UpgradeSection />
       <HomeServices />
       <WhyAntas />

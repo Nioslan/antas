@@ -49,10 +49,12 @@ export default async function AmazonlinkPage() {
                 return (
                   <article
                     key={build.id}
-                    className="overflow-hidden rounded-2xl border border-border bg-surface-elevated"
+                    id={build.id}
+                    className="scroll-mt-24 overflow-hidden rounded-2xl border border-border bg-surface-elevated"
                   >
                     {cover ? (
                       <div className="relative aspect-video bg-black">
+                        
                         <Image
                           src={cover}
                           alt={build.name}

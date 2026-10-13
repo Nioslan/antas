@@ -7,10 +7,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages = [
     "",
     "/pcs",
+    "/amazonlink",
     "/servicios",
     "/financiamiento",
     "/garantia",
     "/upgrade",
+    "/politicas",
     "/contacto",
   ];
 
